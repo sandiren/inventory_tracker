@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} Inventory Item - Inventory Tracker{% endblock %}
+
+{% block content %}
+  <h1 class="mb-4">{{ action }} Inventory Item</h1>
+  <form method="post" class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label" for="name">Name *</label>
+      <input class="form-control" id="name" name="name" required value="{{ item.name if item else '' }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="category">Category</label>
+      <input class="form-control" id="category" name="category" value="{{ item.category if item else '' }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label" for="quantity">Quantity</label>
+      <input class="form-control" id="quantity" name="quantity" type="number" min="0" value="{{ item.quantity if item else 1 }}">
+    </div>
+    <div class="col-md-9">
+      <label class="form-label" for="location">Location</label>
+      <input class="form-control" id="location" name="location" value="{{ item.location if item else '' }}">
+    </div>
+    <div class="col-12">
+      <label class="form-label" for="description">Description</label>
+      <textarea class="form-control" id="description" name="description" rows="3">{{ item.description if item else '' }}</textarea>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="gps_lat">GPS Latitude</label>
+      <input class="form-control" id="gps_lat" name="gps_lat" value="{{ item.gps_lat if item and item.gps_lat is not none else '' }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="gps_lng">GPS Longitude</label>
+      <input class="form-control" id="gps_lng" name="gps_lng" value="{{ item.gps_lng if item and item.gps_lng is not none else '' }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="maintenance_due">Next Maintenance (YYYY-MM-DD)</label>
+      <input class="form-control" id="maintenance_due" name="maintenance_due" type="date" value="{{ item.maintenance_due.strftime('%Y-%m-%d') if item and item.maintenance_due else '' }}">
+    </div>
+    <div class="col-12">
+      <label class="form-label" for="maintenance_notes">Maintenance Notes</label>
+      <textarea class="form-control" id="maintenance_notes" name="maintenance_notes" rows="3">{{ item.maintenance_notes if item else '' }}</textarea>
+    </div>
+    <div class="col-12 d-flex justify-content-between">
+      <a class="btn btn-outline-secondary" href="{{ url_for('dashboard') }}">Cancel</a>
+      <button class="btn btn-primary" type="submit">{{ action }}</button>
+    </div>
+  </form>
+{% endblock %}
