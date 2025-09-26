@@ -301,7 +301,10 @@ def _generate_qr_code(payload: str) -> str:
     image = qr.make_image(fill_color="black", back_color="white")
 
     buffer = BytesIO()
-    image.save(buffer, format="PNG")
+    try:
+        image.save(buffer, format="PNG")
+    except TypeError:
+        image.save(buffer)
     encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
     return f"data:image/png;base64,{encoded}"
 
