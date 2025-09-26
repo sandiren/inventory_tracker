@@ -271,7 +271,13 @@ def _generate_qr_png(data: str) -> BytesIO:
 
     buffer = BytesIO()
     # Pillow-based image objects exposed by the qrcode library implement save().
-    image.save(buffer, format="PNG")
+    try:
+        image.save(buffer, format="PNG")
+    except TypeError as exc:
+        # Some backends (e.g. PyPNG) do not accept a format keyword.
+        if "unexpected keyword argument 'format'" not in str(exc):
+            raise
+        image.save(buffer)
     buffer.seek(0)
     return buffer
 
