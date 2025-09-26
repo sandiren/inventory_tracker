@@ -5,6 +5,9 @@ instance/
 *.db
 *.sqlite
 
+static/uploads/*
+!static/uploads/.gitkeep
+
 # Flask/pytest caches
 .env
 .venv/

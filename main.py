@@ -3,13 +3,16 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 from typing import Iterable, List, Sequence
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from flask import Flask, render_template
+from flask import Flask, redirect, render_template, request, url_for
 from flask_mail import Mail, Message
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect
+from werkzeug.utils import secure_filename
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,6 +30,7 @@ class Item(db.Model):
     name = db.Column(db.String(120), nullable=False)
     maintenance_due = db.Column(db.Date, nullable=False)
     last_notified_at = db.Column(db.DateTime(timezone=True))
+    photo_filename = db.Column(db.String(255))
 
     maintenance_events = db.relationship(
         "MaintenanceEvent", back_populates="item", cascade="all, delete-orphan"
@@ -93,15 +97,30 @@ app.config.from_mapping(
     MAINTENANCE_ALERT_HOUR=int(os.getenv("MAINTENANCE_ALERT_HOUR", 8)),
     SCHEDULER_TIMEZONE=os.getenv("SCHEDULER_TIMEZONE", "UTC"),
     ENABLE_SCHEDULER=os.getenv("ENABLE_SCHEDULER", "true").lower() == "true",
+    UPLOAD_FOLDER=os.getenv(
+        "UPLOAD_FOLDER", os.path.join(app.root_path, "static", "uploads")
+    ),
+    MAX_CONTENT_LENGTH=int(os.getenv("MAX_UPLOAD_SIZE", 5 * 1024 * 1024)),
 )
 
 db.init_app(app)
 mail.init_app(app)
 
+ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
+
 
 def _bootstrap_database() -> None:
     with app.app_context():
         db.create_all()
+        engine = db.engine
+        inspector = inspect(engine)
+        if "photo_filename" not in {c["name"] for c in inspector.get_columns("items")}:
+            with engine.begin() as connection:
+                connection.execute(
+                    db.text("ALTER TABLE items ADD COLUMN photo_filename VARCHAR(255)")
+                )
+        upload_dir = Path(app.config["UPLOAD_FOLDER"])
+        upload_dir.mkdir(parents=True, exist_ok=True)
 
 
 def _collect_recipients() -> List[str]:
@@ -225,6 +244,28 @@ def _record_notifications(
     db.session.commit()
 
 
+def _allowed_file(filename: str) -> bool:
+    if not filename or "." not in filename:
+        return False
+    return filename.rsplit(".", 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
+def _store_photo(photo) -> str | None:
+    if not photo or not photo.filename:
+        return None
+
+    filename = secure_filename(photo.filename)
+    if not filename:
+        return None
+
+    extension = Path(filename).suffix.lower()
+    timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S%f")
+    stored_name = f"{timestamp}{extension}"
+    destination = Path(app.config["UPLOAD_FOLDER"]) / stored_name
+    photo.save(destination)
+    return stored_name
+
+
 def _send_alert_email(
     recipients: Sequence[str],
     due_items: Sequence[Item],
@@ -316,8 +357,44 @@ def _start_scheduler() -> None:
     )
 
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def dashboard():
+    error: str | None = None
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        maintenance_due_raw = request.form.get("maintenance_due", "").strip()
+        photo = request.files.get("photo")
+
+        if not name:
+            error = "Item name is required."
+        else:
+            try:
+                maintenance_due_value = datetime.strptime(
+                    maintenance_due_raw, "%Y-%m-%d"
+                ).date()
+            except ValueError:
+                error = "Maintenance due date must be provided in YYYY-MM-DD format."
+            else:
+                stored_name: str | None = None
+                if photo and photo.filename:
+                    if not _allowed_file(photo.filename):
+                        error = (
+                            "Please upload an image file (png, jpg, jpeg, gif, webp)."
+                        )
+                    else:
+                        stored_name = _store_photo(photo)
+
+                if error is None:
+                    item = Item(
+                        name=name,
+                        maintenance_due=maintenance_due_value,
+                        photo_filename=stored_name,
+                    )
+                    db.session.add(item)
+                    db.session.commit()
+                    return redirect(url_for("dashboard"))
+
     today = date.today()
     window_days = app.config["MAINTENANCE_ALERT_WINDOW_DAYS"]
     upcoming_cutoff = today + timedelta(days=window_days)
@@ -331,7 +408,11 @@ def dashboard():
         else:
             status = "On schedule"
 
-        items.append(ItemDisplay(item=item, status=status, last_notified_at=item.last_notified_at))
+        items.append(
+            ItemDisplay(
+                item=item, status=status, last_notified_at=item.last_notified_at
+            )
+        )
 
     recent_notifications = (
         NotificationLog.query.order_by(NotificationLog.sent_at.desc()).limit(20).all()
@@ -343,6 +424,7 @@ def dashboard():
         recent_notifications=recent_notifications,
         today=today,
         window_days=window_days,
+        error=error,
     )
 
 
