@@ -2,6 +2,14 @@
 
 {% block title %}{{ action }} Inventory Item - Inventory Tracker{% endblock %}
 
+{% block extra_head %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-sA+vx6kGPR/HIcPp3dGVi8nrpGL21Yw9A4JHFKZ3h0=" crossorigin="" />
+  <style>
+    #location-map { height: 320px; }
+  </style>
+{% endblock %}
+
 {% block content %}
   <h1 class="mb-4">{{ action }} Inventory Item</h1>
   <form method="post" class="row g-3">
@@ -25,6 +33,16 @@
       <label class="form-label" for="description">Description</label>
       <textarea class="form-control" id="description" name="description" rows="3">{{ item.description if item else '' }}</textarea>
     </div>
+    <div class="col-12">
+      <label class="form-label" for="location-map">Map Location</label>
+      <div id="location-map" class="rounded border"></div>
+      <div class="d-flex flex-wrap gap-2 mt-2">
+        <button class="btn btn-outline-primary btn-sm" id="use-my-location" type="button">
+          Use My Current Location
+        </button>
+        <small class="text-muted">Click the map to set coordinates or use the button to fill in your current GPS position.</small>
+      </div>
+    </div>
     <div class="col-md-6">
       <label class="form-label" for="gps_lat">GPS Latitude</label>
       <input class="form-control" id="gps_lat" name="gps_lat" value="{{ item.gps_lat if item and item.gps_lat is not none else '' }}">
@@ -46,4 +64,94 @@
       <button class="btn btn-primary" type="submit">{{ action }}</button>
     </div>
   </form>
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ super() }}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-DvN1M36zrHfX5Yucs5cjoxOYD65Zj50sC1LFp6Z3A6A=" crossorigin=""></script>
+  <script>
+    (function() {
+      const latInput = document.getElementById('gps_lat');
+      const lngInput = document.getElementById('gps_lng');
+      const defaultLat = latInput.value ? parseFloat(latInput.value) : null;
+      const defaultLng = lngInput.value ? parseFloat(lngInput.value) : null;
+
+      const map = L.map('location-map');
+      let marker = null;
+
+      function setMarker(lat, lng) {
+        if (Number.isNaN(lat) || Number.isNaN(lng)) {
+          return;
+        }
+
+        const formattedLat = lat.toFixed(6);
+        const formattedLng = lng.toFixed(6);
+
+        latInput.value = formattedLat;
+        lngInput.value = formattedLng;
+
+        if (marker) {
+          marker.setLatLng([lat, lng]);
+        } else {
+          marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+          marker.on('dragend', (event) => {
+            const coords = event.target.getLatLng();
+            setMarker(coords.lat, coords.lng);
+          });
+        }
+      }
+
+      if (defaultLat !== null && !Number.isNaN(defaultLat) && defaultLng !== null && !Number.isNaN(defaultLng)) {
+        map.setView([defaultLat, defaultLng], 13);
+        setMarker(defaultLat, defaultLng);
+      } else {
+        map.setView([0, 0], 2);
+      }
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+      }).addTo(map);
+
+      map.on('click', function(event) {
+        setMarker(event.latlng.lat, event.latlng.lng);
+      });
+
+      document.getElementById('use-my-location').addEventListener('click', function() {
+        if (!navigator.geolocation) {
+          alert('Geolocation is not supported by your browser.');
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(function(position) {
+          const { latitude, longitude } = position.coords;
+          map.setView([latitude, longitude], 15);
+          setMarker(latitude, longitude);
+        }, function() {
+          alert('Unable to retrieve your location. Please allow location access or select on the map.');
+        });
+      });
+
+      function handleInputChange() {
+        const lat = parseFloat(latInput.value);
+        const lng = parseFloat(lngInput.value);
+        if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+          if (!marker) {
+            marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+            marker.on('dragend', (event) => {
+              const coords = event.target.getLatLng();
+              setMarker(coords.lat, coords.lng);
+            });
+          } else {
+            marker.setLatLng([lat, lng]);
+          }
+          map.setView([lat, lng], map.getZoom() < 5 ? 13 : map.getZoom());
+        }
+      }
+
+      latInput.addEventListener('change', handleInputChange);
+      lngInput.addEventListener('change', handleInputChange);
+    })();
+  </script>
 {% endblock %}
