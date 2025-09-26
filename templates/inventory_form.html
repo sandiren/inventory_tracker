@@ -158,7 +158,7 @@
           integrity="sha256-DvN1M36zrHfX5Yucs5cjoxOYD65Zj50sC1LFp6Z3A6A=" crossorigin=""></script>
   <script>
     (function() {
-      const categoriesData = {{ categories | tojson }};
+      const categoriesData = {{ categories_json | tojson }};
       let categoriesState = categoriesData.slice().sort((a, b) => a.name.localeCompare(b.name));
 
       const categorySelect = document.getElementById('category');
@@ -340,7 +340,7 @@
       renderCategorySelect();
       renderCategoryList();
 
-      const locationsData = {{ locations | tojson }};
+      const locationsData = {{ locations_json | tojson }};
       let locationsState = locationsData.slice().sort((a, b) => a.name.localeCompare(b.name));
 
       const locationSelect = document.getElementById('location');

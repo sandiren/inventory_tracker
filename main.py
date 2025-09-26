@@ -143,6 +143,8 @@ def new_inventory():
         action="Create",
         categories=categories,
         locations=locations,
+        categories_json=[category.as_dict() for category in categories],
+        locations_json=[location.as_dict() for location in locations],
     )
 
 
@@ -178,6 +180,8 @@ def edit_inventory(item_id: int):
         action="Update",
         categories=categories,
         locations=locations,
+        categories_json=[category.as_dict() for category in categories],
+        locations_json=[location.as_dict() for location in locations],
     )
 
 
