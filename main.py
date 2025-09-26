@@ -36,6 +36,16 @@ class Category(db.Model):
         return {"id": self.id, "name": self.name}
 
 
+class Location(db.Model):
+    __tablename__ = "locations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), unique=True, nullable=False)
+
+    def as_dict(self):
+        return {"id": self.id, "name": self.name}
+
+
 class InventoryItem(db.Model):
     __tablename__ = "inventory_items"
 
@@ -126,8 +136,13 @@ def new_inventory():
         return redirect(url_for("dashboard"))
 
     categories = Category.query.order_by(Category.name).all()
+    locations = Location.query.order_by(Location.name).all()
     return render_template(
-        "inventory_form.html", item=None, action="Create", categories=categories
+        "inventory_form.html",
+        item=None,
+        action="Create",
+        categories=categories,
+        locations=locations,
     )
 
 
@@ -156,8 +171,13 @@ def edit_inventory(item_id: int):
         return redirect(url_for("inventory_detail", item_id=item_id))
 
     categories = Category.query.order_by(Category.name).all()
+    locations = Location.query.order_by(Location.name).all()
     return render_template(
-        "inventory_form.html", item=item, action="Update", categories=categories
+        "inventory_form.html",
+        item=item,
+        action="Update",
+        categories=categories,
+        locations=locations,
     )
 
 
@@ -303,6 +323,65 @@ def delete_category(category_id: int):
     )
 
     db.session.delete(category)
+    db.session.commit()
+    return jsonify({"status": "deleted"})
+
+
+@app.route("/locations", methods=["GET", "POST"])
+def manage_locations():
+    if request.method == "GET":
+        locations = Location.query.order_by(Location.name).all()
+        return jsonify([location.as_dict() for location in locations])
+
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "Location name is required."}), 400
+
+    if Location.query.filter(db.func.lower(Location.name) == name.lower()).first():
+        return jsonify({"error": "Location already exists."}), 409
+
+    location = Location(name=name)
+    db.session.add(location)
+    db.session.commit()
+    return jsonify(location.as_dict()), 201
+
+
+@app.route("/locations/<int:location_id>", methods=["PUT"])
+def update_location(location_id: int):
+    location = Location.query.get_or_404(location_id)
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+
+    if not name:
+        return jsonify({"error": "Location name is required."}), 400
+
+    existing = Location.query.filter(
+        db.func.lower(Location.name) == name.lower(), Location.id != location.id
+    ).first()
+    if existing:
+        return jsonify({"error": "Location already exists."}), 409
+
+    old_name = location.name
+    location.name = name
+
+    for item in InventoryItem.query.filter_by(location=old_name).all():
+        item.location = name
+
+    db.session.commit()
+    return jsonify(location.as_dict())
+
+
+@app.route("/locations/<int:location_id>", methods=["DELETE"])
+def delete_location(location_id: int):
+    location = Location.query.get_or_404(location_id)
+    old_name = location.name
+
+    InventoryItem.query.filter_by(location=old_name).update(
+        {"location": None}, synchronize_session=False
+    )
+
+    db.session.delete(location)
     db.session.commit()
     return jsonify({"status": "deleted"})
 

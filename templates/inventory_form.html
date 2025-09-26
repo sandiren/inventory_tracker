@@ -42,7 +42,22 @@
     </div>
     <div class="col-md-9">
       <label class="form-label" for="location">Location</label>
-      <input class="form-control" id="location" name="location" value="{{ item.location if item else '' }}">
+      {% set location_names = locations | map(attribute='name') | list %}
+      <div class="input-group">
+        <select class="form-select" id="location" name="location">
+          <option value="">Select a location</option>
+          {% for location in locations %}
+            <option value="{{ location.name }}" {% if item and item.location == location.name %}selected{% endif %}>{{ location.name }}</option>
+          {% endfor %}
+          {% if item and item.location and item.location not in location_names %}
+            <option value="{{ item.location }}" selected>{{ item.location }} (no longer tracked)</option>
+          {% endif %}
+        </select>
+        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#locationModal">
+          Manage
+        </button>
+      </div>
+      <div class="form-text">Select a saved location or manage locations to add, rename, or remove them.</div>
     </div>
     <div class="col-12">
       <label class="form-label" for="description">Description</label>
@@ -100,6 +115,34 @@
           <hr>
           <div class="alert alert-danger d-none" id="category-error" role="alert"></div>
           <ul class="list-group" id="category-list"></ul>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div aria-hidden="true" aria-labelledby="locationModalLabel" class="modal fade" id="locationModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="locationModalLabel">Manage Locations</h5>
+          <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <form class="row g-2" id="add-location-form">
+            <div class="col-8">
+              <label class="form-label" for="new-location-name">New Location Name</label>
+              <input class="form-control" id="new-location-name" placeholder="e.g. Yard A" required type="text">
+            </div>
+            <div class="col-4 d-flex align-items-end">
+              <button class="btn btn-primary w-100" type="submit">Add</button>
+            </div>
+          </form>
+          <hr>
+          <div class="alert alert-danger d-none" id="location-error" role="alert"></div>
+          <ul class="list-group" id="location-list"></ul>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Close</button>
@@ -296,6 +339,188 @@
 
       renderCategorySelect();
       renderCategoryList();
+
+      const locationsData = {{ locations | tojson }};
+      let locationsState = locationsData.slice().sort((a, b) => a.name.localeCompare(b.name));
+
+      const locationSelect = document.getElementById('location');
+      const locationList = document.getElementById('location-list');
+      const addLocationForm = document.getElementById('add-location-form');
+      const newLocationInput = document.getElementById('new-location-name');
+      const locationError = document.getElementById('location-error');
+
+      function showLocationError(message) {
+        if (!locationError) {
+          alert(message);
+          return;
+        }
+        locationError.textContent = message;
+        locationError.classList.remove('d-none');
+      }
+
+      function clearLocationError() {
+        if (locationError) {
+          locationError.classList.add('d-none');
+          locationError.textContent = '';
+        }
+      }
+
+      function renderLocationSelect() {
+        if (!locationSelect) {
+          return;
+        }
+        const currentValue = locationSelect.value;
+        const selectedStillExists = locationsState.some((location) => location.name === currentValue);
+        locationSelect.innerHTML = '<option value="">Select a location</option>';
+        locationsState.forEach((location) => {
+          const option = document.createElement('option');
+          option.value = location.name;
+          option.textContent = location.name;
+          if (location.name === currentValue) {
+            option.selected = true;
+          }
+          locationSelect.appendChild(option);
+        });
+
+        if (currentValue && !selectedStillExists) {
+          const legacyOption = document.createElement('option');
+          legacyOption.value = currentValue;
+          legacyOption.selected = true;
+          legacyOption.textContent = `${currentValue} (no longer tracked)`;
+          locationSelect.appendChild(legacyOption);
+        }
+      }
+
+      function renderLocationList() {
+        if (!locationList) {
+          return;
+        }
+        locationList.innerHTML = '';
+        if (locationsState.length === 0) {
+          const emptyItem = document.createElement('li');
+          emptyItem.className = 'list-group-item text-muted text-center';
+          emptyItem.textContent = 'No locations yet. Add one above to get started.';
+          locationList.appendChild(emptyItem);
+          return;
+        }
+
+        locationsState.forEach((location) => {
+          const listItem = document.createElement('li');
+          listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+          const nameSpan = document.createElement('span');
+          nameSpan.textContent = location.name;
+          listItem.appendChild(nameSpan);
+
+          const buttonGroup = document.createElement('div');
+          buttonGroup.className = 'btn-group btn-group-sm';
+
+          const editButton = document.createElement('button');
+          editButton.type = 'button';
+          editButton.className = 'btn btn-outline-primary';
+          editButton.textContent = 'Rename';
+          editButton.addEventListener('click', () => {
+            clearLocationError();
+            const newName = prompt('Rename location', location.name);
+            if (newName === null) {
+              return;
+            }
+            const trimmedName = newName.trim();
+            if (!trimmedName) {
+              showLocationError('Location name cannot be empty.');
+              return;
+            }
+            fetch(`/locations/${location.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: trimmedName })
+            })
+              .then((response) => response.json().then((data) => ({ status: response.status, data })))
+              .then(({ status, data }) => {
+                if (status >= 400) {
+                  showLocationError(data.error || 'Unable to rename location.');
+                  return;
+                }
+                const previousName = location.name;
+                locationsState = locationsState
+                  .map((entry) => (entry.id === location.id ? data : entry))
+                  .sort((a, b) => a.name.localeCompare(b.name));
+                if (locationSelect && locationSelect.value === previousName) {
+                  locationSelect.value = data.name;
+                }
+                renderLocationSelect();
+                renderLocationList();
+              })
+              .catch(() => showLocationError('Unable to rename location. Please try again.'));
+          });
+          buttonGroup.appendChild(editButton);
+
+          const deleteButton = document.createElement('button');
+          deleteButton.type = 'button';
+          deleteButton.className = 'btn btn-outline-danger';
+          deleteButton.textContent = 'Remove';
+          deleteButton.addEventListener('click', () => {
+            clearLocationError();
+            if (!confirm(`Remove location "${location.name}"? Items with this location will be cleared.`)) {
+              return;
+            }
+            fetch(`/locations/${location.id}`, { method: 'DELETE' })
+              .then((response) => {
+                if (!response.ok) {
+                  return response.json().then((data) => {
+                    throw new Error(data.error || 'Unable to delete location.');
+                  });
+                }
+                locationsState = locationsState
+                  .filter((entry) => entry.id !== location.id)
+                  .sort((a, b) => a.name.localeCompare(b.name));
+                if (locationSelect && locationSelect.value === location.name) {
+                  locationSelect.value = '';
+                }
+                renderLocationSelect();
+                renderLocationList();
+              })
+              .catch((error) => showLocationError(error.message));
+          });
+          buttonGroup.appendChild(deleteButton);
+
+          listItem.appendChild(buttonGroup);
+          locationList.appendChild(listItem);
+        });
+      }
+
+      if (addLocationForm) {
+        addLocationForm.addEventListener('submit', (event) => {
+          event.preventDefault();
+          clearLocationError();
+          const name = newLocationInput.value.trim();
+          if (!name) {
+            showLocationError('Location name cannot be empty.');
+            return;
+          }
+          fetch(`/locations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+          })
+            .then((response) => response.json().then((data) => ({ status: response.status, data })))
+            .then(({ status, data }) => {
+              if (status >= 400) {
+                showLocationError(data.error || 'Unable to add location.');
+                return;
+              }
+              locationsState.push(data);
+              locationsState.sort((a, b) => a.name.localeCompare(b.name));
+              newLocationInput.value = '';
+              renderLocationSelect();
+              renderLocationList();
+            })
+            .catch(() => showLocationError('Unable to add location. Please try again.'));
+        });
+      }
+
+      renderLocationSelect();
+      renderLocationList();
 
       const latInput = document.getElementById('gps_lat');
       const lngInput = document.getElementById('gps_lng');
