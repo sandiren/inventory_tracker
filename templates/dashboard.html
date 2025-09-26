@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Inventory Maintenance Dashboard</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2rem;
+        background-color: #f7f9fc;
+      }
+      nav {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      nav a {
+        color: #1a73e8;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      nav a:hover {
+        text-decoration: underline;
+      }
+      h1 {
+        color: #1a3b5d;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 2rem;
+      }
+      th, td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #d7dce2;
+        text-align: left;
+      }
+      th {
+        background-color: #e8eef7;
+      }
+      tr.overdue {
+        background-color: #ffe6e6;
+      }
+      tr.due-soon {
+        background-color: #fff7e0;
+      }
+      tr.on-schedule {
+        background-color: #e8f8f2;
+      }
+      .timestamp {
+        color: #555;
+        font-size: 0.9rem;
+      }
+      .no-data {
+        color: #666;
+        font-style: italic;
+      }
+      form {
+        background: #ffffff;
+        border: 1px solid #d7dce2;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+      form label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+      }
+      form input[type="text"],
+      form input[type="date"],
+      form input[type="file"] {
+        width: 100%;
+        padding: 0.5rem;
+        margin-bottom: 1rem;
+        border: 1px solid #c3cad6;
+        border-radius: 4px;
+        font-size: 1rem;
+      }
+      form button {
+        background-color: #1a73e8;
+        color: #fff;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      form button:hover {
+        background-color: #1558b0;
+      }
+      .alert {
+        padding: 0.75rem 1rem;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+      }
+      .alert.error {
+        background-color: #ffe6e6;
+        color: #8b1a1a;
+        border: 1px solid #f5bcbc;
+      }
+      .item-photo {
+        max-width: 120px;
+        border-radius: 6px;
+        border: 1px solid #d7dce2;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="{{ url_for('dashboard') }}">Maintenance Dashboard</a>
+      <a href="{{ url_for('qr_dashboard') }}">QR Code Dashboard</a>
+    </nav>
+    <h1>Maintenance Dashboard</h1>
+    <p>Today is <strong>{{ today.isoformat() }}</strong>. Items due within the next {{ window_days }} days are highlighted below.</p>
+    {% if dashboard_url %}
+      <p>
+        Bookmark or share this dashboard:&nbsp;
+        <a href="{{ dashboard_url }}">{{ dashboard_url }}</a>
+      </p>
+    {% endif %}
+    <p>
+      Need printable QR labels? Visit the
+      <a href="{{ qr_dashboard_url }}">QR code dashboard</a>
+      to generate scannable tags for each item.
+    </p>
+
+    <h2>Add Inventory Item</h2>
+    {% if error %}
+      <div class="alert error">{{ error }}</div>
+    {% endif %}
+    <form method="post" enctype="multipart/form-data">
+      <label for="name">Item name</label>
+      <input id="name" name="name" type="text" placeholder="e.g., Air Compressor" required />
+
+      <label for="maintenance_due">Maintenance due date</label>
+      <input id="maintenance_due" name="maintenance_due" type="date" required />
+
+      <label for="photo">Item photo (use camera or choose from gallery)</label>
+      <input
+        id="photo"
+        name="photo"
+        type="file"
+        accept="image/*"
+        capture="environment"
+      />
+
+      <button type="submit">Save Item</button>
+    </form>
+
+    <h2>Inventory Items</h2>
+    {% if items %}
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Maintenance Due</th>
+            <th>Status</th>
+            <th>Last Notified</th>
+            <th>Photo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in items %}
+            <tr class="{{ entry.status.lower().replace(' ', '-') }}">
+              <td>{{ entry.item.name }}</td>
+              <td>{{ entry.item.maintenance_due.isoformat() }}</td>
+              <td>{{ entry.status }}</td>
+              <td>
+                {% if entry.last_notified_at %}
+                  <span class="timestamp">{{ entry.last_notified_at.strftime('%Y-%m-%d %H:%M') }} UTC</span>
+                {% else %}
+                  <span class="no-data">Never notified</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if entry.item.photo_filename %}
+                  <img
+                    src="{{ url_for('static', filename='uploads/' ~ entry.item.photo_filename) }}"
+                    alt="{{ entry.item.name }}"
+                    class="item-photo"
+                  />
+                {% else %}
+                  <span class="no-data">No photo</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="no-data">No inventory items have been recorded yet.</p>
+    {% endif %}
+
+    <h2>Recent Notifications</h2>
+    {% if recent_notifications %}
+      <table>
+        <thead>
+          <tr>
+            <th>Sent At (UTC)</th>
+            <th>Type</th>
+            <th>Item / Event</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in recent_notifications %}
+            <tr>
+              <td>{{ log.sent_at.strftime('%Y-%m-%d %H:%M') }}</td>
+              <td>{{ log.status.title() }}</td>
+              <td>
+                {% if log.item %}
+                  {{ log.item.name }}
+                {% elif log.maintenance_event and log.maintenance_event.item %}
+                  {{ log.maintenance_event.item.name }} — {{ log.maintenance_event.description or 'Maintenance completed' }}
+                {% else %}
+                  (archived record)
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="no-data">No notifications have been sent yet.</p>
+    {% endif %}
+  </body>
+</html>

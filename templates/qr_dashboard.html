@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>QR Code Dashboard</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2rem;
+        background-color: #f7f9fc;
+      }
+      nav {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      nav a {
+        color: #1a73e8;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      nav a:hover {
+        text-decoration: underline;
+      }
+      h1 {
+        color: #1a3b5d;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+      }
+      .card {
+        background: #ffffff;
+        border: 1px solid #d7dce2;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      .card img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        border: 1px solid #c3cad6;
+      }
+      .status {
+        font-weight: bold;
+      }
+      .status.overdue {
+        color: #b72a2a;
+      }
+      .status.due-soon {
+        color: #a96800;
+      }
+      .status.on-schedule {
+        color: #1f7a57;
+      }
+      .share {
+        margin: 1rem 0 2rem;
+        padding: 1rem;
+        background: #e8eef7;
+        border-radius: 8px;
+      }
+      .empty {
+        font-style: italic;
+        color: #555;
+      }
+      .actions a {
+        color: #1a73e8;
+        text-decoration: none;
+      }
+      .actions a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="{{ maintenance_url }}">Maintenance Dashboard</a>
+      <a href="{{ url_for('qr_dashboard') }}">QR Code Dashboard</a>
+    </nav>
+    <h1>QR Code Dashboard</h1>
+    <p>
+      Generate and print QR codes for your inventory items. Each code links back to the
+      maintenance dashboard with up-to-date status information.
+    </p>
+    {% if dashboard_url %}
+      <div class="share">
+        Shareable link: <a href="{{ dashboard_url }}">{{ dashboard_url }}</a>
+      </div>
+    {% endif %}
+    {% if not qr_items %}
+      <p class="empty">Add inventory items on the maintenance dashboard to generate QR codes.</p>
+    {% else %}
+      <div class="grid">
+        {% for entry in qr_items %}
+          <div class="card">
+            <h2>{{ entry.item.name }}</h2>
+            <img src="{{ entry.qr_data_uri }}" alt="QR code for {{ entry.item.name }}" />
+            <p><strong>Maintenance due:</strong> {{ entry.item.maintenance_due.isoformat() }}</p>
+            <p>
+              <span class="status {{ entry.status.lower().replace(' ', '-') }}">Status: {{ entry.status }}</span>
+            </p>
+            {% if entry.item.photo_filename %}
+              <p>
+                <img
+                  src="{{ url_for('static', filename='uploads/' ~ entry.item.photo_filename) }}"
+                  alt="{{ entry.item.name }} photo"
+                  style="max-width: 100%; border-radius: 8px; border: 1px solid #d7dce2;"
+                />
+              </p>
+            {% endif %}
+            <div class="actions">
+              <p>
+                Scan destination: <a href="{{ entry.target_url }}">{{ entry.target_url }}</a>
+              </p>
+              <p>
+                <a href="{{ entry.target_url }}" target="_blank" rel="noopener">Open item details</a>
+              </p>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </body>
+</html>
