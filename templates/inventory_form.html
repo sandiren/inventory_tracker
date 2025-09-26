@@ -45,11 +45,11 @@
     </div>
     <div class="col-md-6">
       <label class="form-label" for="gps_lat">GPS Latitude</label>
-      <input class="form-control" id="gps_lat" name="gps_lat" value="{{ item.gps_lat if item and item.gps_lat is not none else '' }}">
+      <input class="form-control" id="gps_lat" name="gps_lat" value="{{ item.gps_lat if item and item.gps_lat is not none else '' }}" readonly>
     </div>
     <div class="col-md-6">
       <label class="form-label" for="gps_lng">GPS Longitude</label>
-      <input class="form-control" id="gps_lng" name="gps_lng" value="{{ item.gps_lng if item and item.gps_lng is not none else '' }}">
+      <input class="form-control" id="gps_lng" name="gps_lng" value="{{ item.gps_lng if item and item.gps_lng is not none else '' }}" readonly>
     </div>
     <div class="col-md-6">
       <label class="form-label" for="maintenance_due">Next Maintenance (YYYY-MM-DD)</label>
@@ -77,7 +77,14 @@
       const defaultLat = latInput.value ? parseFloat(latInput.value) : null;
       const defaultLng = lngInput.value ? parseFloat(lngInput.value) : null;
 
-      const map = L.map('location-map');
+      const hasDefaultCoords = defaultLat !== null && !Number.isNaN(defaultLat) &&
+        defaultLng !== null && !Number.isNaN(defaultLng);
+
+      const map = L.map('location-map', {
+        center: hasDefaultCoords ? [defaultLat, defaultLng] : [20, 0],
+        zoom: hasDefaultCoords ? 13 : 2,
+        zoomControl: true
+      });
       let marker = null;
 
       function setMarker(lat, lng) {
@@ -102,17 +109,18 @@
         }
       }
 
-      if (defaultLat !== null && !Number.isNaN(defaultLat) && defaultLng !== null && !Number.isNaN(defaultLng)) {
-        map.setView([defaultLat, defaultLng], 13);
+      if (hasDefaultCoords) {
         setMarker(defaultLat, defaultLng);
-      } else {
-        map.setView([0, 0], 2);
       }
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
       }).addTo(map);
+
+      requestAnimationFrame(() => {
+        map.invalidateSize();
+      });
 
       map.on('click', function(event) {
         setMarker(event.latlng.lat, event.latlng.lng);
@@ -132,26 +140,6 @@
           alert('Unable to retrieve your location. Please allow location access or select on the map.');
         });
       });
-
-      function handleInputChange() {
-        const lat = parseFloat(latInput.value);
-        const lng = parseFloat(lngInput.value);
-        if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
-          if (!marker) {
-            marker = L.marker([lat, lng], { draggable: true }).addTo(map);
-            marker.on('dragend', (event) => {
-              const coords = event.target.getLatLng();
-              setMarker(coords.lat, coords.lng);
-            });
-          } else {
-            marker.setLatLng([lat, lng]);
-          }
-          map.setView([lat, lng], map.getZoom() < 5 ? 13 : map.getZoom());
-        }
-      }
-
-      latInput.addEventListener('change', handleInputChange);
-      lngInput.addEventListener('change', handleInputChange);
     })();
   </script>
 {% endblock %}
