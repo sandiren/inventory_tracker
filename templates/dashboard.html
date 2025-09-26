@@ -97,6 +97,12 @@
   <body>
     <h1>Maintenance Dashboard</h1>
     <p>Today is <strong>{{ today.isoformat() }}</strong>. Items due within the next {{ window_days }} days are highlighted below.</p>
+    {% if dashboard_url %}
+      <p>
+        Bookmark or share this dashboard:&nbsp;
+        <a href="{{ dashboard_url }}">{{ dashboard_url }}</a>
+      </p>
+    {% endif %}
 
     <h2>Add Inventory Item</h2>
     {% if error %}

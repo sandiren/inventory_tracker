@@ -100,6 +100,9 @@ app.config.from_mapping(
     UPLOAD_FOLDER=os.getenv(
         "UPLOAD_FOLDER", os.path.join(app.root_path, "static", "uploads")
     ),
+    DASHBOARD_URL=os.getenv(
+        "DASHBOARD_URL", "http://localhost:5000/dashboard"
+    ),
     MAX_CONTENT_LENGTH=int(os.getenv("MAX_UPLOAD_SIZE", 5 * 1024 * 1024)),
 )
 
@@ -211,6 +214,11 @@ def _build_email_body(
 
     if len(lines) == 1:
         lines.append("\nNo new maintenance updates today.")
+
+    dashboard_url = app.config.get("DASHBOARD_URL")
+    if dashboard_url:
+        lines.append("")
+        lines.append(f"View the full maintenance dashboard: {dashboard_url}")
 
     return "\n".join(lines)
 
@@ -358,6 +366,7 @@ def _start_scheduler() -> None:
 
 
 @app.route("/", methods=["GET", "POST"])
+@app.route("/dashboard", methods=["GET", "POST"])
 def dashboard():
     error: str | None = None
 
@@ -425,6 +434,7 @@ def dashboard():
         today=today,
         window_days=window_days,
         error=error,
+        dashboard_url=url_for("dashboard", _external=True),
     )
 
 
