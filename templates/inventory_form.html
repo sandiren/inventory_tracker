@@ -19,7 +19,22 @@
     </div>
     <div class="col-md-6">
       <label class="form-label" for="category">Category</label>
-      <input class="form-control" id="category" name="category" value="{{ item.category if item else '' }}">
+      {% set category_names = categories | map(attribute='name') | list %}
+      <div class="input-group">
+        <select class="form-select" id="category" name="category">
+          <option value="">Select a category</option>
+          {% for category in categories %}
+            <option value="{{ category.name }}" {% if item and item.category == category.name %}selected{% endif %}>{{ category.name }}</option>
+          {% endfor %}
+          {% if item and item.category and item.category not in category_names %}
+            <option value="{{ item.category }}" selected>{{ item.category }} (no longer tracked)</option>
+          {% endif %}
+        </select>
+        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#categoryModal">
+          Manage
+        </button>
+      </div>
+      <div class="form-text">Choose an existing category or manage categories to add, rename, or remove them.</div>
     </div>
     <div class="col-md-3">
       <label class="form-label" for="quantity">Quantity</label>
@@ -64,6 +79,34 @@
       <button class="btn btn-primary" type="submit">{{ action }}</button>
     </div>
   </form>
+
+  <div aria-hidden="true" aria-labelledby="categoryModalLabel" class="modal fade" id="categoryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="categoryModalLabel">Manage Categories</h5>
+          <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <form class="row g-2" id="add-category-form">
+            <div class="col-8">
+              <label class="form-label" for="new-category-name">New Category Name</label>
+              <input class="form-control" id="new-category-name" placeholder="e.g. Heavy Equipment" required type="text">
+            </div>
+            <div class="col-4 d-flex align-items-end">
+              <button class="btn btn-primary w-100" type="submit">Add</button>
+            </div>
+          </form>
+          <hr>
+          <div class="alert alert-danger d-none" id="category-error" role="alert"></div>
+          <ul class="list-group" id="category-list"></ul>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -72,6 +115,188 @@
           integrity="sha256-DvN1M36zrHfX5Yucs5cjoxOYD65Zj50sC1LFp6Z3A6A=" crossorigin=""></script>
   <script>
     (function() {
+      const categoriesData = {{ categories | tojson }};
+      let categoriesState = categoriesData.slice().sort((a, b) => a.name.localeCompare(b.name));
+
+      const categorySelect = document.getElementById('category');
+      const categoryList = document.getElementById('category-list');
+      const addCategoryForm = document.getElementById('add-category-form');
+      const newCategoryInput = document.getElementById('new-category-name');
+      const categoryError = document.getElementById('category-error');
+
+      function showCategoryError(message) {
+        if (!categoryError) {
+          alert(message);
+          return;
+        }
+        categoryError.textContent = message;
+        categoryError.classList.remove('d-none');
+      }
+
+      function clearCategoryError() {
+        if (categoryError) {
+          categoryError.classList.add('d-none');
+          categoryError.textContent = '';
+        }
+      }
+
+      function renderCategorySelect() {
+        if (!categorySelect) {
+          return;
+        }
+        const currentValue = categorySelect.value;
+        const selectedStillExists = categoriesState.some((category) => category.name === currentValue);
+        categorySelect.innerHTML = '<option value="">Select a category</option>';
+        categoriesState.forEach((category) => {
+          const option = document.createElement('option');
+          option.value = category.name;
+          option.textContent = category.name;
+          if (category.name === currentValue) {
+            option.selected = true;
+          }
+          categorySelect.appendChild(option);
+        });
+
+        if (currentValue && !selectedStillExists) {
+          const legacyOption = document.createElement('option');
+          legacyOption.value = currentValue;
+          legacyOption.selected = true;
+          legacyOption.textContent = `${currentValue} (no longer tracked)`;
+          categorySelect.appendChild(legacyOption);
+        }
+      }
+
+      function renderCategoryList() {
+        if (!categoryList) {
+          return;
+        }
+        categoryList.innerHTML = '';
+        if (categoriesState.length === 0) {
+          const emptyItem = document.createElement('li');
+          emptyItem.className = 'list-group-item text-muted text-center';
+          emptyItem.textContent = 'No categories yet. Add one above to get started.';
+          categoryList.appendChild(emptyItem);
+          return;
+        }
+
+        categoriesState.forEach((category) => {
+          const listItem = document.createElement('li');
+          listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+          const nameSpan = document.createElement('span');
+          nameSpan.textContent = category.name;
+          listItem.appendChild(nameSpan);
+
+          const buttonGroup = document.createElement('div');
+          buttonGroup.className = 'btn-group btn-group-sm';
+
+          const editButton = document.createElement('button');
+          editButton.type = 'button';
+          editButton.className = 'btn btn-outline-primary';
+          editButton.textContent = 'Rename';
+          editButton.addEventListener('click', () => {
+            clearCategoryError();
+            const newName = prompt('Rename category', category.name);
+            if (newName === null) {
+              return;
+            }
+            const trimmedName = newName.trim();
+            if (!trimmedName) {
+              showCategoryError('Category name cannot be empty.');
+              return;
+            }
+            fetch(`/categories/${category.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: trimmedName })
+            })
+              .then((response) => response.json().then((data) => ({ status: response.status, data })))
+              .then(({ status, data }) => {
+                if (status >= 400) {
+                  showCategoryError(data.error || 'Unable to rename category.');
+                  return;
+                }
+                const previousName = category.name;
+                categoriesState = categoriesState
+                  .map((entry) => (entry.id === category.id ? data : entry))
+                  .sort((a, b) => a.name.localeCompare(b.name));
+                if (categorySelect && categorySelect.value === previousName) {
+                  categorySelect.value = data.name;
+                }
+                renderCategorySelect();
+                renderCategoryList();
+              })
+              .catch(() => showCategoryError('Unable to rename category. Please try again.'));
+          });
+          buttonGroup.appendChild(editButton);
+
+          const deleteButton = document.createElement('button');
+          deleteButton.type = 'button';
+          deleteButton.className = 'btn btn-outline-danger';
+          deleteButton.textContent = 'Remove';
+          deleteButton.addEventListener('click', () => {
+            clearCategoryError();
+            if (!confirm(`Remove category "${category.name}"? Items with this category will be cleared.`)) {
+              return;
+            }
+            fetch(`/categories/${category.id}`, { method: 'DELETE' })
+              .then((response) => {
+                if (!response.ok) {
+                  return response.json().then((data) => {
+                    throw new Error(data.error || 'Unable to delete category.');
+                  });
+                }
+                categoriesState = categoriesState
+                  .filter((entry) => entry.id !== category.id)
+                  .sort((a, b) => a.name.localeCompare(b.name));
+                if (categorySelect && categorySelect.value === category.name) {
+                  categorySelect.value = '';
+                }
+                renderCategorySelect();
+                renderCategoryList();
+              })
+              .catch((error) => showCategoryError(error.message));
+          });
+          buttonGroup.appendChild(deleteButton);
+
+          listItem.appendChild(buttonGroup);
+          categoryList.appendChild(listItem);
+        });
+      }
+
+      if (addCategoryForm) {
+        addCategoryForm.addEventListener('submit', (event) => {
+          event.preventDefault();
+          clearCategoryError();
+          const name = newCategoryInput.value.trim();
+          if (!name) {
+            showCategoryError('Category name cannot be empty.');
+            return;
+          }
+          fetch(`/categories`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+          })
+            .then((response) => response.json().then((data) => ({ status: response.status, data })))
+            .then(({ status, data }) => {
+              if (status >= 400) {
+                showCategoryError(data.error || 'Unable to add category.');
+                return;
+              }
+              categoriesState.push(data);
+              categoriesState.sort((a, b) => a.name.localeCompare(b.name));
+              newCategoryInput.value = '';
+              renderCategorySelect();
+              renderCategoryList();
+            })
+            .catch(() => showCategoryError('Unable to add category. Please try again.'));
+        });
+      }
+
+      renderCategorySelect();
+      renderCategoryList();
+
       const latInput = document.getElementById('gps_lat');
       const lngInput = document.getElementById('gps_lng');
       const defaultLat = latInput.value ? parseFloat(latInput.value) : null;

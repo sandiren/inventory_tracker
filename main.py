@@ -26,6 +26,16 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
 db = SQLAlchemy(app)
 
 
+class Category(db.Model):
+    __tablename__ = "categories"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), unique=True, nullable=False)
+
+    def as_dict(self):
+        return {"id": self.id, "name": self.name}
+
+
 class InventoryItem(db.Model):
     __tablename__ = "inventory_items"
 
@@ -115,7 +125,10 @@ def new_inventory():
         flash("Inventory item created", "success")
         return redirect(url_for("dashboard"))
 
-    return render_template("inventory_form.html", item=None, action="Create")
+    categories = Category.query.order_by(Category.name).all()
+    return render_template(
+        "inventory_form.html", item=None, action="Create", categories=categories
+    )
 
 
 @app.route("/inventory/<int:item_id>/edit", methods=["GET", "POST"])
@@ -142,7 +155,10 @@ def edit_inventory(item_id: int):
         flash("Inventory item updated", "success")
         return redirect(url_for("inventory_detail", item_id=item_id))
 
-    return render_template("inventory_form.html", item=item, action="Update")
+    categories = Category.query.order_by(Category.name).all()
+    return render_template(
+        "inventory_form.html", item=item, action="Update", categories=categories
+    )
 
 
 @app.route("/inventory/<int:item_id>/delete", methods=["POST"])
@@ -230,6 +246,65 @@ def inventory_map():
 def items_api():
     items = InventoryItem.query.all()
     return jsonify([item.as_dict() for item in items])
+
+
+@app.route("/categories", methods=["GET", "POST"])
+def manage_categories():
+    if request.method == "GET":
+        categories = Category.query.order_by(Category.name).all()
+        return jsonify([category.as_dict() for category in categories])
+
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "Category name is required."}), 400
+
+    if Category.query.filter(db.func.lower(Category.name) == name.lower()).first():
+        return jsonify({"error": "Category already exists."}), 409
+
+    category = Category(name=name)
+    db.session.add(category)
+    db.session.commit()
+    return jsonify(category.as_dict()), 201
+
+
+@app.route("/categories/<int:category_id>", methods=["PUT"])
+def update_category(category_id: int):
+    category = Category.query.get_or_404(category_id)
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+
+    if not name:
+        return jsonify({"error": "Category name is required."}), 400
+
+    existing = Category.query.filter(
+        db.func.lower(Category.name) == name.lower(), Category.id != category.id
+    ).first()
+    if existing:
+        return jsonify({"error": "Category already exists."}), 409
+
+    old_name = category.name
+    category.name = name
+
+    for item in InventoryItem.query.filter_by(category=old_name).all():
+        item.category = name
+
+    db.session.commit()
+    return jsonify(category.as_dict())
+
+
+@app.route("/categories/<int:category_id>", methods=["DELETE"])
+def delete_category(category_id: int):
+    category = Category.query.get_or_404(category_id)
+    old_name = category.name
+
+    InventoryItem.query.filter_by(category=old_name).update(
+        {"category": None}, synchronize_session=False
+    )
+
+    db.session.delete(category)
+    db.session.commit()
+    return jsonify({"status": "deleted"})
 
 
 def _parse_float(value):
