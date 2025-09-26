@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{{ item.name }} — Inventory Item</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2rem;
+        background-color: #f7f9fc;
+      }
+      nav {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      nav a {
+        color: #1a73e8;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      nav a:hover {
+        text-decoration: underline;
+      }
+      h1 {
+        color: #1a3b5d;
+      }
+      .card {
+        background: #ffffff;
+        border: 1px solid #d7dce2;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        max-width: 720px;
+      }
+      .photo {
+        max-width: 280px;
+        border-radius: 8px;
+        border: 1px solid #c3cad6;
+      }
+      .status {
+        font-weight: bold;
+      }
+      .status.overdue {
+        color: #b72a2a;
+      }
+      .status.due-soon {
+        color: #a96800;
+      }
+      .status.on-schedule {
+        color: #1f7a57;
+      }
+      ul {
+        padding-left: 1.5rem;
+      }
+      li + li {
+        margin-top: 0.5rem;
+      }
+      .empty {
+        font-style: italic;
+        color: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="{{ maintenance_url }}">Maintenance Dashboard</a>
+      <a href="{{ qr_dashboard_url }}">QR Code Dashboard</a>
+    </nav>
+    <div class="card">
+      <h1>{{ item.name }}</h1>
+      <p><strong>Maintenance due:</strong> {{ item.maintenance_due.isoformat() }}</p>
+      <p class="status {{ status.lower().replace(' ', '-') }}">Status: {{ status }}</p>
+      {% if item.photo_filename %}
+        <p>
+          <img
+            src="{{ url_for('static', filename='uploads/' ~ item.photo_filename) }}"
+            alt="{{ item.name }} photo"
+            class="photo"
+          />
+        </p>
+      {% endif %}
+      <p>
+        Latest notification:
+        {% if item.last_notified_at %}
+          {{ item.last_notified_at.strftime('%Y-%m-%d %H:%M') }} UTC
+        {% else %}
+          <span class="empty">No notifications sent yet.</span>
+        {% endif %}
+      </p>
+      <h2>Maintenance History</h2>
+      {% if events %}
+        <ul>
+          {% for event in events %}
+            <li>
+              <strong>{{ event.completed_at.strftime('%Y-%m-%d %H:%M') }} UTC</strong>
+              — {{ event.description or 'Maintenance completed' }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty">No maintenance events recorded yet.</p>
+      {% endif %}
+      <p>
+        Return to the
+        <a href="{{ maintenance_url }}">maintenance dashboard</a>
+        to log new events or update scheduling.
+      </p>
+    </div>
+  </body>
+</html>

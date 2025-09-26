@@ -9,6 +9,19 @@
         margin: 2rem;
         background-color: #f7f9fc;
       }
+      nav {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      nav a {
+        color: #1a73e8;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      nav a:hover {
+        text-decoration: underline;
+      }
       h1 {
         color: #1a3b5d;
       }
@@ -95,6 +108,10 @@
     </style>
   </head>
   <body>
+    <nav>
+      <a href="{{ url_for('dashboard') }}">Maintenance Dashboard</a>
+      <a href="{{ url_for('qr_dashboard') }}">QR Code Dashboard</a>
+    </nav>
     <h1>Maintenance Dashboard</h1>
     <p>Today is <strong>{{ today.isoformat() }}</strong>. Items due within the next {{ window_days }} days are highlighted below.</p>
     {% if dashboard_url %}
@@ -103,6 +120,11 @@
         <a href="{{ dashboard_url }}">{{ dashboard_url }}</a>
       </p>
     {% endif %}
+    <p>
+      Need printable QR labels? Visit the
+      <a href="{{ qr_dashboard_url }}">QR code dashboard</a>
+      to generate scannable tags for each item.
+    </p>
 
     <h2>Add Inventory Item</h2>
     {% if error %}

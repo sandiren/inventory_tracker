@@ -1,8 +1,10 @@
 import atexit
+import base64
 import logging
 import os
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from io import BytesIO
 from pathlib import Path
 from typing import Iterable, List, Sequence
 
@@ -13,6 +15,8 @@ from flask_mail import Mail, Message
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect
 from werkzeug.utils import secure_filename
+
+import qrcode
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -72,6 +76,14 @@ class ItemDisplay:
     item: Item
     status: str
     last_notified_at: datetime | None
+
+
+@dataclass
+class QRItemDisplay:
+    item: Item
+    status: str
+    target_url: str
+    qr_data_uri: str
 
 
 app = Flask(__name__)
@@ -274,6 +286,26 @@ def _store_photo(photo) -> str | None:
     return stored_name
 
 
+def _determine_item_status(item: Item, today: date, upcoming_cutoff: date) -> str:
+    if item.maintenance_due < today:
+        return "Overdue"
+    if item.maintenance_due <= upcoming_cutoff:
+        return "Due soon"
+    return "On schedule"
+
+
+def _generate_qr_code(payload: str) -> str:
+    qr = qrcode.QRCode(version=1, box_size=8, border=2)
+    qr.add_data(payload)
+    qr.make(fit=True)
+    image = qr.make_image(fill_color="black", back_color="white")
+
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
 def _send_alert_email(
     recipients: Sequence[str],
     due_items: Sequence[Item],
@@ -410,12 +442,7 @@ def dashboard():
 
     items: List[ItemDisplay] = []
     for item in Item.query.order_by(Item.maintenance_due.asc()).all():
-        if item.maintenance_due < today:
-            status = "Overdue"
-        elif item.maintenance_due <= upcoming_cutoff:
-            status = "Due soon"
-        else:
-            status = "On schedule"
+        status = _determine_item_status(item, today, upcoming_cutoff)
 
         items.append(
             ItemDisplay(
@@ -435,6 +462,61 @@ def dashboard():
         window_days=window_days,
         error=error,
         dashboard_url=url_for("dashboard", _external=True),
+        qr_dashboard_url=url_for("qr_dashboard"),
+    )
+
+
+@app.route("/qr-dashboard")
+def qr_dashboard():
+    today = date.today()
+    window_days = app.config["MAINTENANCE_ALERT_WINDOW_DAYS"]
+    upcoming_cutoff = today + timedelta(days=window_days)
+
+    qr_items: List[QRItemDisplay] = []
+    for item in Item.query.order_by(Item.name.asc()).all():
+        status = _determine_item_status(item, today, upcoming_cutoff)
+        target_url = url_for("item_detail", item_id=item.id, _external=True)
+        qr_items.append(
+            QRItemDisplay(
+                item=item,
+                status=status,
+                target_url=target_url,
+                qr_data_uri=_generate_qr_code(target_url),
+            )
+        )
+
+    return render_template(
+        "qr_dashboard.html",
+        qr_items=qr_items,
+        today=today,
+        maintenance_url=url_for("dashboard"),
+        maintenance_url_external=url_for("dashboard", _external=True),
+        dashboard_url=url_for("qr_dashboard", _external=True),
+    )
+
+
+@app.route("/items/<int:item_id>")
+def item_detail(item_id: int):
+    item = Item.query.get_or_404(item_id)
+    events = (
+        MaintenanceEvent.query.filter_by(item_id=item.id)
+        .order_by(MaintenanceEvent.completed_at.desc())
+        .all()
+    )
+
+    today = date.today()
+    window_days = app.config["MAINTENANCE_ALERT_WINDOW_DAYS"]
+    upcoming_cutoff = today + timedelta(days=window_days)
+    status = _determine_item_status(item, today, upcoming_cutoff)
+
+    return render_template(
+        "item_detail.html",
+        item=item,
+        events=events,
+        status=status,
+        maintenance_url=url_for("dashboard"),
+        maintenance_url_external=url_for("dashboard", _external=True),
+        qr_dashboard_url=url_for("qr_dashboard"),
     )
 
 
