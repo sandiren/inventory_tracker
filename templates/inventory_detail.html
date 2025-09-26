@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}{{ item.name }} - Inventory Tracker{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="mb-1">{{ item.name }}</h1>
+      <p class="text-muted mb-0">Status: <strong class="text-capitalize">{{ item.status.replace('_', ' ') }}</strong></p>
+    </div>
+    <div class="btn-group" role="group">
+      <a class="btn btn-outline-secondary" href="{{ url_for('inventory_qr', item_id=item.id) }}" target="_blank">Download QR</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('edit_inventory', item_id=item.id) }}">Edit</a>
+      <form class="d-inline" method="post" action="{{ url_for('delete_inventory', item_id=item.id) }}" onsubmit="return confirm('Delete this item?');">
+        <button class="btn btn-outline-danger" type="submit">Delete</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="card mb-4">
+        <div class="card-header">Details</div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Category</dt>
+            <dd class="col-sm-8">{{ item.category or '—' }}</dd>
+
+            <dt class="col-sm-4">Quantity</dt>
+            <dd class="col-sm-8">{{ item.quantity }}</dd>
+
+            <dt class="col-sm-4">Location</dt>
+            <dd class="col-sm-8">{{ item.location or '—' }}</dd>
+
+            <dt class="col-sm-4">Description</dt>
+            <dd class="col-sm-8">{{ item.description or '—' }}</dd>
+
+            <dt class="col-sm-4">Last Check-In</dt>
+            <dd class="col-sm-8">{{ item.last_checked_in.strftime('%Y-%m-%d %H:%M') if item.last_checked_in else '—' }}</dd>
+
+            <dt class="col-sm-4">Last Check-Out</dt>
+            <dd class="col-sm-8">{{ item.last_checked_out.strftime('%Y-%m-%d %H:%M') if item.last_checked_out else '—' }}</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">Maintenance</div>
+        <div class="card-body">
+          <p class="mb-2">Next scheduled maintenance:
+            <strong>{{ item.maintenance_due.strftime('%Y-%m-%d') if item.maintenance_due else 'Not set' }}</strong>
+          </p>
+          <p class="text-muted">{{ item.maintenance_notes or 'No notes provided.' }}</p>
+          <form class="row g-3" method="post" action="{{ url_for('schedule_maintenance', item_id=item.id) }}">
+            <div class="col-md-6">
+              <label class="form-label" for="maintenance_due">Maintenance Date</label>
+              <input class="form-control" id="maintenance_due" name="maintenance_due" type="date" value="{{ item.maintenance_due.strftime('%Y-%m-%d') if item.maintenance_due else '' }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="maintenance_notes">Notes</label>
+              <textarea class="form-control" id="maintenance_notes" name="maintenance_notes" rows="2">{{ item.maintenance_notes or '' }}</textarea>
+            </div>
+            <div class="col-12">
+              <button class="btn btn-primary" type="submit">Update Maintenance</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card mb-4">
+        <div class="card-header">Check In / Out</div>
+        <div class="card-body">
+          <form class="mb-3" method="post" action="{{ url_for('checkout_inventory', item_id=item.id) }}">
+            <div class="mb-3">
+              <label class="form-label" for="checkout_location">Checkout Location</label>
+              <input class="form-control" id="checkout_location" name="checkout_location" placeholder="Job site, crew, etc.">
+            </div>
+            <button class="btn btn-warning w-100" type="submit">Check Out</button>
+          </form>
+          <form method="post" action="{{ url_for('checkin_inventory', item_id=item.id) }}">
+            <button class="btn btn-success w-100" type="submit">Check In</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">GPS Tracking</div>
+        <div class="card-body">
+          <p class="mb-2">Current Coordinates:</p>
+          <p class="fw-semibold">{{ item.gps_lat or '—' }}, {{ item.gps_lng or '—' }}</p>
+          <form class="row g-2" method="post" action="{{ url_for('update_gps', item_id=item.id) }}">
+            <div class="col-6">
+              <label class="form-label" for="gps_lat">Latitude</label>
+              <input class="form-control" id="gps_lat" name="gps_lat" value="{{ item.gps_lat or '' }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="gps_lng">Longitude</label>
+              <input class="form-control" id="gps_lng" name="gps_lng" value="{{ item.gps_lng or '' }}">
+            </div>
+            <div class="col-12">
+              <button class="btn btn-outline-primary w-100" type="submit">Update GPS</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

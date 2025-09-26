@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Inventory Tracker{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Dashboard</h1>
+    <a class="btn btn-primary" href="{{ url_for('new_inventory') }}">Add Inventory Item</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card h-100 text-center">
+        <div class="card-body">
+          <h5 class="card-title">Total Items</h5>
+          <p class="display-6">{{ total_items }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100 text-center">
+        <div class="card-body">
+          <h5 class="card-title">Checked Out</h5>
+          <p class="display-6 text-warning">{{ checked_out_count }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100 text-center">
+        <div class="card-body">
+          <h5 class="card-title">Maintenance Due</h5>
+          <p class="display-6 text-danger">{{ maintenance_due_items|length }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header">Inventory Overview</div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Quantity</th>
+            <th>Status</th>
+            <th>Location</th>
+            <th>Maintenance Due</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+            <tr class="status-{{ item.status }}">
+              <td><a href="{{ url_for('inventory_detail', item_id=item.id) }}">{{ item.name }}</a></td>
+              <td>{{ item.category or '—' }}</td>
+              <td>{{ item.quantity }}</td>
+              <td class="fw-semibold">{{ item.status.replace('_', ' ').title() }}</td>
+              <td>{{ item.location or '—' }}</td>
+              <td>
+                {% if item.maintenance_due %}
+                  {{ item.maintenance_due.strftime('%Y-%m-%d') }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td class="text-nowrap">
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('inventory_detail', item_id=item.id) }}">View</a>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('inventory_qr', item_id=item.id) }}" target="_blank">QR</a>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="7" class="text-center py-4">No inventory items yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Maintenance Alerts</div>
+    <div class="card-body">
+      {% if maintenance_due_items %}
+        <ul class="list-group list-group-flush">
+          {% for item in maintenance_due_items %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <strong>{{ item.name }}</strong><br>
+                <small class="text-muted">Due: {{ item.maintenance_due.strftime('%Y-%m-%d') }}</small>
+              </div>
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('inventory_detail', item_id=item.id) }}">Manage</a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="mb-0">No maintenance tasks due today.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
