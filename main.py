@@ -205,15 +205,14 @@ def update_gps(item_id: int):
 def inventory_qr(item_id: int):
     item = InventoryItem.query.get_or_404(item_id)
     qr_url = url_for("inventory_detail", item_id=item.id, _external=True)
-    qr = qrcode.QRCode(box_size=10, border=4)
-    qr.add_data(qr_url)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    buffer = BytesIO()
-    img.save(buffer, format="PNG")
-    buffer.seek(0)
+    try:
+        qr_stream = _generate_qr_png(qr_url)
+    except RuntimeError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("inventory_detail", item_id=item.id))
+
     return send_file(
-        buffer,
+        qr_stream,
         mimetype="image/png",
         as_attachment=False,
         download_name=f"inventory-{item.id}.png",
@@ -251,6 +250,30 @@ def _parse_date(value):
     except ValueError:
         flash("Invalid date format. Use YYYY-MM-DD.", "error")
         return None
+
+
+def _generate_qr_png(data: str) -> BytesIO:
+    if not data:
+        raise RuntimeError("Unable to generate QR code: no data provided")
+
+    if not hasattr(qrcode, "QRCode"):
+        if hasattr(qrcode, "make"):
+            image = qrcode.make(data)
+        else:
+            raise RuntimeError(
+                "QR code generation library is unavailable. Install the 'qrcode' package."
+            )
+    else:
+        qr = qrcode.QRCode(box_size=10, border=4)
+        qr.add_data(data)
+        qr.make(fit=True)
+        image = qr.make_image(fill_color="black", back_color="white")
+
+    buffer = BytesIO()
+    # Pillow-based image objects exposed by the qrcode library implement save().
+    image.save(buffer, format="PNG")
+    buffer.seek(0)
+    return buffer
 
 
 with app.app_context():
