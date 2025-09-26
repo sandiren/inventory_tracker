@@ -1,0 +1,10 @@
+__pycache__/
+instance/
+*.py[cod]
+*.sqlite3
+*.db
+*.sqlite
+
+# Flask/pytest caches
+.env
+.venv/

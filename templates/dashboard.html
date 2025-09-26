@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Inventory Maintenance Dashboard</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2rem;
+        background-color: #f7f9fc;
+      }
+      h1 {
+        color: #1a3b5d;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 2rem;
+      }
+      th, td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #d7dce2;
+        text-align: left;
+      }
+      th {
+        background-color: #e8eef7;
+      }
+      tr.overdue {
+        background-color: #ffe6e6;
+      }
+      tr.due-soon {
+        background-color: #fff7e0;
+      }
+      tr.on-schedule {
+        background-color: #e8f8f2;
+      }
+      .timestamp {
+        color: #555;
+        font-size: 0.9rem;
+      }
+      .no-data {
+        color: #666;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Maintenance Dashboard</h1>
+    <p>Today is <strong>{{ today.isoformat() }}</strong>. Items due within the next {{ window_days }} days are highlighted below.</p>
+
+    <h2>Inventory Items</h2>
+    {% if items %}
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Maintenance Due</th>
+            <th>Status</th>
+            <th>Last Notified</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in items %}
+            <tr class="{{ entry.status.lower().replace(' ', '-') }}">
+              <td>{{ entry.item.name }}</td>
+              <td>{{ entry.item.maintenance_due.isoformat() }}</td>
+              <td>{{ entry.status }}</td>
+              <td>
+                {% if entry.last_notified_at %}
+                  <span class="timestamp">{{ entry.last_notified_at.strftime('%Y-%m-%d %H:%M') }} UTC</span>
+                {% else %}
+                  <span class="no-data">Never notified</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="no-data">No inventory items have been recorded yet.</p>
+    {% endif %}
+
+    <h2>Recent Notifications</h2>
+    {% if recent_notifications %}
+      <table>
+        <thead>
+          <tr>
+            <th>Sent At (UTC)</th>
+            <th>Type</th>
+            <th>Item / Event</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in recent_notifications %}
+            <tr>
+              <td>{{ log.sent_at.strftime('%Y-%m-%d %H:%M') }}</td>
+              <td>{{ log.status.title() }}</td>
+              <td>
+                {% if log.item %}
+                  {{ log.item.name }}
+                {% elif log.maintenance_event and log.maintenance_event.item %}
+                  {{ log.maintenance_event.item.name }} — {{ log.maintenance_event.description or 'Maintenance completed' }}
+                {% else %}
+                  (archived record)
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="no-data">No notifications have been sent yet.</p>
+    {% endif %}
+  </body>
+</html>
