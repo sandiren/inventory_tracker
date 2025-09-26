@@ -25,6 +25,10 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
 
 db = SQLAlchemy(app)
 
+# Ensure database tables are created when the application starts up.
+with app.app_context():
+    db.create_all()
+
 
 class InventoryItem(db.Model):
     __tablename__ = "inventory_items"
@@ -251,11 +255,6 @@ def _parse_date(value):
     except ValueError:
         flash("Invalid date format. Use YYYY-MM-DD.", "error")
         return None
-
-
-@app.before_first_request
-def create_tables():
-    db.create_all()
 
 
 if __name__ == "__main__":
