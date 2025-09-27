@@ -45,7 +45,12 @@ A Flask-based web application to manage construction inventory with QR code gene
 
 The application uses SQLite (`inventory.db`) by default. Tables are created automatically on the first request.
 
+To connect the app to a hosted PostgreSQL database such as Supabase, either set the `DATABASE_URL` environment variable directly or provide the Supabase metadata variables (`SUPABASE_URL`, `SUPABASE_DB_PASSWORD`, and optionally `SUPABASE_DB_USER`, `SUPABASE_DB_NAME`, `SUPABASE_DB_HOST`, `SUPABASE_DB_PORT`). The app will build the proper TLS-enabled connection string automatically. A detailed walkthrough is available in [`docs/SUPABASE_SETUP.md`](docs/SUPABASE_SETUP.md).
+
 ## Environment Variables
 
 - `SECRET_KEY`: Override the default Flask secret key for production deployments.
-- `DATABASE_URL`: If set, the app will use this connection string instead of the local SQLite database.
+- `DATABASE_URL`: If set, the app will use this connection string instead of the local SQLite database (e.g. a Supabase URI).
+- `SUPABASE_URL`: Supabase project URL (used to derive the PostgreSQL host when `DATABASE_URL` is not set).
+- `SUPABASE_DB_PASSWORD`: Password for the primary Supabase database user.
+- `SUPABASE_DB_USER`, `SUPABASE_DB_NAME`, `SUPABASE_DB_HOST`, `SUPABASE_DB_PORT`: Optional overrides when deriving the Supabase connection string.

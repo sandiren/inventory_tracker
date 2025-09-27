@@ -1,4 +1,6 @@
 import os
+from typing import Optional
+from urllib.parse import urlparse
 from datetime import datetime
 from io import BytesIO
 
@@ -17,9 +19,44 @@ import qrcode
 
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///inventory.db"
-)
+
+
+def _derive_supabase_database_url() -> Optional[str]:
+    """Construct a PostgreSQL connection string from Supabase env vars."""
+
+    raw_url = os.environ.get("SUPABASE_URL")
+    password = os.environ.get("SUPABASE_DB_PASSWORD")
+    if not raw_url or not password:
+        return None
+
+    project_url = urlparse(raw_url)
+    if not project_url.netloc.endswith("supabase.co"):
+        return None
+
+    project_ref = project_url.netloc.split(".")[0]
+    if not project_ref:
+        return None
+
+    user = os.environ.get("SUPABASE_DB_USER", "postgres")
+    db_name = os.environ.get("SUPABASE_DB_NAME", "postgres")
+    port = os.environ.get("SUPABASE_DB_PORT", "5432")
+    host = os.environ.get("SUPABASE_DB_HOST") or f"db.{project_ref}.supabase.co"
+
+    return (
+        f"postgresql://{user}:{password}@{host}:{port}/{db_name}?sslmode=require"
+    )
+
+
+database_url = os.environ.get("DATABASE_URL") or _derive_supabase_database_url()
+if not database_url:
+    database_url = "sqlite:///inventory.db"
+
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+if database_url.startswith("postgresql") and "sslmode=" not in database_url:
+    app.config.setdefault(
+        "SQLALCHEMY_ENGINE_OPTIONS", {"connect_args": {"sslmode": "require"}}
+    )
+
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
 
