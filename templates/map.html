@@ -3,9 +3,20 @@
 {% block title %}Map View - Inventory Tracker{% endblock %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-sA+vx6kGPR/HIcPp3dGVi8nrpGL2N1Yw9A4JHFKZ3h0=" crossorigin=""/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-sA+vx6kGPR/HIcPp3dGVi8nrpGL2N1Yw9A4JHFKZ3h0=" crossorigin="" />
   <style>
-    #inventory-map { height: 70vh; }
+    #inventory-map {
+      height: 70vh;
+      min-height: 420px;
+      width: 100%;
+      border-radius: 0.75rem;
+      overflow: hidden;
+    }
+
+    .leaflet-control-attribution,
+    .leaflet-control-scale-line {
+      font-size: 0.75rem;
+    }
   </style>
 {% endblock %}
 
@@ -20,10 +31,18 @@
 {% block extra_scripts %}
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-DvN1M36zrHfX5Yucs5cjoxOYD65Zj50sC1LFp6Z3A6A=" crossorigin=""></script>
   <script>
-    const map = L.map('inventory-map').setView([0, 0], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+    const map = L.map('inventory-map', {
+      zoomControl: true,
+    }).setView([20, 0], 2);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 20,
+    }).addTo(map);
+
+    L.control.scale({
+      imperial: false,
     }).addTo(map);
 
     const items = {{ items_data|tojson }};
@@ -31,7 +50,9 @@
 
     items.forEach(item => {
       if (item.gps_lat !== null && item.gps_lng !== null) {
-        const marker = L.marker([item.gps_lat, item.gps_lng]).addTo(map);
+        const marker = L.marker([item.gps_lat, item.gps_lng], {
+          title: item.name,
+        }).addTo(map);
         marker.bindPopup(`
           <strong>${item.name}</strong><br>
           Status: ${item.status.replace('_', ' ')}<br>
@@ -45,6 +66,8 @@
     if (markers.length) {
       const group = new L.featureGroup(markers);
       map.fitBounds(group.getBounds().pad(0.2));
+    } else {
+      map.setView([20, 0], 2);
     }
   </script>
 {% endblock %}
