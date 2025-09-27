@@ -1,6 +1,7 @@
 import os
-from datetime import datetime
+from datetime import date, datetime
 from io import BytesIO
+from typing import Optional
 
 from flask import (
     Flask,
@@ -390,7 +391,7 @@ def delete_location(location_id: int):
     return jsonify({"status": "deleted"})
 
 
-def _parse_float(value):
+def _parse_float(value: Optional[str]) -> Optional[float]:
     if value in (None, ""):
         return None
     try:
@@ -400,7 +401,7 @@ def _parse_float(value):
         return None
 
 
-def _parse_date(value):
+def _parse_date(value: Optional[str]) -> Optional[date]:
     if value in (None, ""):
         return None
     try:
