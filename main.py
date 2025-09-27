@@ -42,8 +42,15 @@ def _derive_supabase_database_url() -> Optional[str]:
     port = os.environ.get("SUPABASE_DB_PORT", "5432")
     host = os.environ.get("SUPABASE_DB_HOST") or f"db.{project_ref}.supabase.co"
 
+    from urllib.parse import quote_plus
+
+    safe_user = quote_plus(user)
+    safe_password = quote_plus(password)
+    safe_db_name = quote_plus(db_name)
+
     return (
-        f"postgresql://{user}:{password}@{host}:{port}/{db_name}?sslmode=require"
+        "postgresql://"
+        f"{safe_user}:{safe_password}@{host}:{port}/{safe_db_name}?sslmode=require"
     )
 
 
