@@ -45,12 +45,14 @@ A Flask-based web application to manage construction inventory with QR code gene
 
 The application uses SQLite (`inventory.db`) by default. Tables are created automatically on the first request.
 
-To connect the app to a hosted PostgreSQL database such as Supabase, either set the `DATABASE_URL` environment variable directly or provide the Supabase metadata variables (`SUPABASE_URL`, `SUPABASE_DB_PASSWORD`, and optionally `SUPABASE_DB_USER`, `SUPABASE_DB_NAME`, `SUPABASE_DB_HOST`, `SUPABASE_DB_PORT`). The app will build the proper TLS-enabled connection string automatically. A detailed walkthrough is available in [`docs/SUPABASE_SETUP.md`](docs/SUPABASE_SETUP.md).
+To connect the app to a hosted PostgreSQL database such as Supabase, either set the `DATABASE_URL` environment variable directly or provide the Supabase metadata variables. The app understands Supabase's `SUPABASE_DB_URL`/`SUPABASE_DIRECT_URL` connection strings as well as the metadata form (`SUPABASE_URL`, `SUPABASE_DB_PASSWORD`, optional `SUPABASE_DB_USER`, `SUPABASE_DB_NAME`, `SUPABASE_DB_HOST`, `SUPABASE_DB_PORT`). It logs when it falls back to SQLite so you immediately know if any of the required credentials are missing. A detailed walkthrough is available in [`docs/SUPABASE_SETUP.md`](docs/SUPABASE_SETUP.md).
 
 ## Environment Variables
 
 - `SECRET_KEY`: Override the default Flask secret key for production deployments.
 - `DATABASE_URL`: If set, the app will use this connection string instead of the local SQLite database (e.g. a Supabase URI).
-- `SUPABASE_URL`: Supabase project URL (used to derive the PostgreSQL host when `DATABASE_URL` is not set).
-- `SUPABASE_DB_PASSWORD`: Password for the primary Supabase database user.
+- `SUPABASE_DB_URL` / `SUPABASE_DIRECT_URL`: Full PostgreSQL connection strings supplied by Supabase. The app automatically appends `sslmode=require` if it is missing.
+- `SUPABASE_URL` / `SUPABASE_PROJECT_URL` / `SUPABASE_HOST`: Supabase project URL or host (used to derive the PostgreSQL host when `DATABASE_URL`/`SUPABASE_DB_URL` is not set).
+- `SUPABASE_DB_PASSWORD` / `SUPABASE_POSTGRES_PASSWORD`: Password for the primary Supabase database user.
 - `SUPABASE_DB_USER`, `SUPABASE_DB_NAME`, `SUPABASE_DB_HOST`, `SUPABASE_DB_PORT`: Optional overrides when deriving the Supabase connection string.
+- `SUPABASE_PROJECT_REF` / `SUPABASE_PROJECT_REFERENCE`: Optional project reference used when the host cannot be parsed from `SUPABASE_URL`.

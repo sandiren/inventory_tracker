@@ -24,23 +24,56 @@ app = Flask(__name__)
 def _derive_supabase_database_url() -> Optional[str]:
     """Construct a PostgreSQL connection string from Supabase env vars."""
 
-    raw_url = os.environ.get("SUPABASE_URL")
-    password = os.environ.get("SUPABASE_DB_PASSWORD")
-    if not raw_url or not password:
+    # Allow supplying a ready-made PostgreSQL URL via a few common Supabase vars.
+    for direct_var in ("SUPABASE_DB_URL", "SUPABASE_DIRECT_URL"):
+        direct_url = os.environ.get(direct_var)
+        if direct_url:
+            if direct_url.startswith("postgresql") and "sslmode=" not in direct_url:
+                separator = "&" if "?" in direct_url else "?"
+                return f"{direct_url}{separator}sslmode=require"
+            return direct_url
+
+    password = (
+        os.environ.get("SUPABASE_DB_PASSWORD")
+        or os.environ.get("SUPABASE_POSTGRES_PASSWORD")
+        or os.environ.get("POSTGRES_PASSWORD")
+    )
+    if not password:
         return None
 
-    project_url = urlparse(raw_url)
-    if not project_url.netloc.endswith("supabase.co"):
-        return None
+    raw_url = (
+        os.environ.get("SUPABASE_URL")
+        or os.environ.get("SUPABASE_PROJECT_URL")
+        or os.environ.get("SUPABASE_HOST")
+    )
+    project_ref = (
+        os.environ.get("SUPABASE_PROJECT_REF")
+        or os.environ.get("SUPABASE_PROJECT_REFERENCE")
+        or os.environ.get("PROJECT_REF")
+    )
 
-    project_ref = project_url.netloc.split(".")[0]
-    if not project_ref:
+    host = os.environ.get("SUPABASE_DB_HOST")
+
+    if not project_ref and raw_url:
+        normalized_url = raw_url
+        if "//" not in normalized_url:
+            normalized_url = f"https://{normalized_url}"
+        project_url = urlparse(normalized_url)
+        candidate_host = project_url.netloc or project_url.path
+        if candidate_host.endswith("supabase.co"):
+            project_ref = candidate_host.split(".")[0]
+        if not host and candidate_host:
+            host = candidate_host
+
+    if not host and project_ref:
+        host = f"db.{project_ref}.supabase.co"
+
+    if not host:
         return None
 
     user = os.environ.get("SUPABASE_DB_USER", "postgres")
     db_name = os.environ.get("SUPABASE_DB_NAME", "postgres")
     port = os.environ.get("SUPABASE_DB_PORT", "5432")
-    host = os.environ.get("SUPABASE_DB_HOST") or f"db.{project_ref}.supabase.co"
 
     from urllib.parse import quote_plus
 
@@ -57,6 +90,17 @@ def _derive_supabase_database_url() -> Optional[str]:
 database_url = os.environ.get("DATABASE_URL") or _derive_supabase_database_url()
 if not database_url:
     database_url = "sqlite:///inventory.db"
+    app.logger.warning(
+        "Falling back to local SQLite storage. Set DATABASE_URL or Supabase "
+        "environment variables to use PostgreSQL instead."
+    )
+else:
+    if database_url.startswith("postgresql"):
+        app.logger.info("Using PostgreSQL database backend")
+    else:
+        app.logger.info(
+            "Using database configuration supplied via DATABASE_URL environment variable"
+        )
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 if database_url.startswith("postgresql") and "sslmode=" not in database_url:

@@ -32,17 +32,24 @@ pip install -r requirements.txt
    # Option B: supply Supabase metadata and let the app build the string
    export SUPABASE_URL="https://titxasiceazfdyfqjukf.supabase.co"
    export SUPABASE_DB_PASSWORD="<your-database-password>"
+   # You can also use Supabase's alternate names
+   # export SUPABASE_DB_URL="postgresql://..."
+   # export SUPABASE_DIRECT_URL="postgresql://..."
+   # export SUPABASE_POSTGRES_PASSWORD="<your-database-password>"
    # Optional overrides if you changed defaults in Supabase
    # export SUPABASE_DB_USER="postgres"
    # export SUPABASE_DB_NAME="postgres"
    # export SUPABASE_DB_HOST="db.<project-ref>.supabase.co"
    # export SUPABASE_DB_PORT="5432"
+   # export SUPABASE_PROJECT_REF="<project-ref>"
+   # export SUPABASE_PROJECT_URL="https://<project-ref>.supabase.co"
 
    export SECRET_KEY="replace-with-a-strong-secret"
    export SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdHhhc2ljZWF6ZmR5ZnFqdWtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NzQ1MjksImV4cCI6MjA3NDU1MDUyOX0.7KTnmlUFq6xAw8OpeHDgkABfD-YSrFzdGgw8W5HLvIw"
    ```
    `SUPABASE_URL` and the anon key come from **Project Settings → API**. The database password is the one set when the project was created (you can reset it under **Project Settings → Database** if needed). Any special characters in the password are automatically URL-encoded by the app, so copy it exactly as shown.
-2. For local development you can store these variables in an `.env` file and source it before running the app.
+2. The Flask app now logs whether it is using PostgreSQL or falling back to SQLite. If you see a fallback message in the console, double-check that one of the password variables listed above is exported along with either `DATABASE_URL`, `SUPABASE_DB_URL`, or the combination of `SUPABASE_URL` + password.
+3. For local development you can store these variables in an `.env` file and source it before running the app.
 
 ## 4. Apply the database schema
 
