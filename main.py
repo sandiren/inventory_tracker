@@ -1,6 +1,8 @@
 import os
 from datetime import datetime
 from io import BytesIO
+from typing import Optional
+from urllib.parse import urlparse
 
 from flask import (
     Flask,
@@ -17,9 +19,62 @@ import qrcode
 
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///inventory.db"
-)
+
+
+def _derive_supabase_database_url() -> Optional[str]:
+    explicit = os.environ.get("DATABASE_URL")
+    if explicit:
+        return explicit
+
+    supabase_url = (os.environ.get("SUPABASE_URL") or "").strip()
+    db_password = (os.environ.get("SUPABASE_DB_PASSWORD") or "").strip()
+    if not supabase_url or not db_password:
+        return None
+
+    parsed = urlparse(supabase_url)
+    candidate_host = parsed.netloc or ""
+    project_ref = (os.environ.get("SUPABASE_PROJECT_REF") or "").strip() or None
+    host = candidate_host
+
+    if candidate_host.endswith("supabase.co"):
+        parts = candidate_host.split(".")
+        if len(parts) >= 3:
+            ref_from_url = parts[0]
+            env_project_ref = project_ref
+            if env_project_ref and env_project_ref != ref_from_url:
+                app.logger.warning(
+                    "SUPABASE_PROJECT_REF (%s) does not match SUPABASE_URL project ref (%s). "
+                    "Using %s from SUPABASE_URL.",
+                    env_project_ref,
+                    ref_from_url,
+                    ref_from_url,
+                )
+            project_ref = ref_from_url
+            host = f"{project_ref}.supabase.co"
+
+    if not project_ref and candidate_host:
+        project_ref = candidate_host.split(".")[0]
+
+    if not project_ref:
+        return None
+
+    if host.endswith("supabase.co"):
+        db_host = f"db.{project_ref}.supabase.co"
+    else:
+        db_host = host
+
+    db_user = os.environ.get("SUPABASE_DB_USER", "postgres").strip() or "postgres"
+    db_name = os.environ.get("SUPABASE_DB_NAME", "postgres").strip() or "postgres"
+    db_port = os.environ.get("SUPABASE_DB_PORT", "5432").strip() or "5432"
+
+    return f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+
+
+def _determine_database_uri() -> str:
+    return _derive_supabase_database_url() or "sqlite:///inventory.db"
+
+
+app.config["SQLALCHEMY_DATABASE_URI"] = _determine_database_uri()
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
 
