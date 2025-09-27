@@ -18,9 +18,10 @@ import qrcode
 
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///inventory.db"
-)
+database_url = os.environ.get("DATABASE_URL")
+if database_url is not None and database_url.strip() == "":
+    database_url = None
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url or "sqlite:///inventory.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
 
