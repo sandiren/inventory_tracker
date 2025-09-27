@@ -17,9 +17,28 @@ import qrcode
 
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///inventory.db"
-)
+
+
+def _derive_supabase_database_url() -> str | None:
+    user = os.environ.get("SUPABASE_DB_USER")
+    password = os.environ.get("SUPABASE_DB_PASSWORD")
+    host = os.environ.get("SUPABASE_DB_HOST")
+    port = os.environ.get("SUPABASE_DB_PORT", "5432")
+    database = os.environ.get("SUPABASE_DB_NAME")
+
+    if not all([user, password, host, port, database]):
+        return None
+
+    return (
+        f"postgresql://{user}:{password}@{host}:{port}/{database}?sslmode=require"
+    )
+
+
+database_url = os.environ.get("DATABASE_URL")
+if not database_url:
+    database_url = _derive_supabase_database_url()
+
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url or "sqlite:///inventory.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
 
