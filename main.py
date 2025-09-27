@@ -18,10 +18,29 @@ import qrcode
 
 
 app = Flask(__name__)
-database_url = os.environ.get("DATABASE_URL")
-if database_url is not None and database_url.strip() == "":
-    database_url = None
-app.config["SQLALCHEMY_DATABASE_URI"] = database_url or "sqlite:///inventory.db"
+
+
+def _resolve_database_url(raw_url: Optional[str]) -> str:
+    if raw_url is None:
+        return "sqlite:///inventory.db"
+
+    candidate = raw_url.strip()
+    if not candidate:
+        return "sqlite:///inventory.db"
+
+    if candidate.startswith("postgres://"):
+        candidate = "postgresql://" + candidate[len("postgres://") :]
+
+    if candidate.startswith("postgresql://") and "sslmode=" not in candidate:
+        separator = "&" if "?" in candidate else "?"
+        candidate = f"{candidate}{separator}sslmode=require"
+
+    return candidate
+
+
+app.config["SQLALCHEMY_DATABASE_URI"] = _resolve_database_url(
+    os.environ.get("DATABASE_URL")
+)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
 
