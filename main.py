@@ -16,9 +16,12 @@ from flask import (
 )
 from flask_sqlalchemy import SQLAlchemy
 import qrcode
+from dotenv import load_dotenv
 
 
 app = Flask(__name__)
+
+load_dotenv()
 
 
 def _derive_supabase_database_url() -> Optional[str]:

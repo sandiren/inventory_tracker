@@ -24,7 +24,12 @@ pip install -r requirements.txt
 
 ## 3. Configure environment variables
 
-1. You can either export the full Supabase connection string as `DATABASE_URL` _or_ let the app assemble it from the standard Supabase environment variables:
+1. Copy the sample environment file and fill it in with your project details:
+   ```bash
+   cp .env.example .env
+   ```
+   Open `.env` in your editor and update the placeholders with your Supabase project URL, anon key, and database password. The app automatically loads variables defined in `.env` via [python-dotenv](https://pypi.org/project/python-dotenv/), so there is no need to export them manually.
+2. If you prefer to manage variables outside of `.env`, you can still export them directly. Supply either the full Supabase connection string as `DATABASE_URL` _or_ let the app assemble it from the standard Supabase environment variables:
    ```bash
    # Option A: provide the connection string directly
    export DATABASE_URL="postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres?sslmode=require"
@@ -48,8 +53,7 @@ pip install -r requirements.txt
    export SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpdHhhc2ljZWF6ZmR5ZnFqdWtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5NzQ1MjksImV4cCI6MjA3NDU1MDUyOX0.7KTnmlUFq6xAw8OpeHDgkABfD-YSrFzdGgw8W5HLvIw"
    ```
    `SUPABASE_URL` and the anon key come from **Project Settings → API**. The database password is the one set when the project was created (you can reset it under **Project Settings → Database** if needed). Any special characters in the password are automatically URL-encoded by the app, so copy it exactly as shown.
-2. The Flask app now logs whether it is using PostgreSQL or falling back to SQLite. If you see a fallback message in the console, double-check that one of the password variables listed above is exported along with either `DATABASE_URL`, `SUPABASE_DB_URL`, or the combination of `SUPABASE_URL` + password.
-3. For local development you can store these variables in an `.env` file and source it before running the app.
+3. The Flask app now logs whether it is using PostgreSQL or falling back to SQLite. If you see a fallback message in the console, double-check that one of the password variables listed above is available along with either `DATABASE_URL`, `SUPABASE_DB_URL`, or the combination of `SUPABASE_URL` + password.
 
 ## 4. Apply the database schema
 

@@ -26,7 +26,16 @@ A Flask-based web application to manage construction inventory with QR code gene
    pip install -r requirements.txt
    ```
 
-3. Run the application:
+3. Copy the sample environment file and fill in your credentials (Supabase users should supply the project URL, anon key, and database password):
+
+   ```bash
+   cp .env.example .env
+   # then edit .env with your preferred editor
+   ```
+
+   The app automatically loads variables defined in `.env`.
+
+4. Run the application:
 
    ```bash
    flask --app main run
