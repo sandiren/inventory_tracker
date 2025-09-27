@@ -1,7 +1,9 @@
 import os
+import socket
 from datetime import date, datetime
 from io import BytesIO
 from typing import Optional
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from flask import (
     Flask,
@@ -20,22 +22,49 @@ import qrcode
 app = Flask(__name__)
 
 
+DEFAULT_SQLITE_URL = "sqlite:///inventory.db"
+
+
 def _resolve_database_url(raw_url: Optional[str]) -> str:
     if raw_url is None:
-        return "sqlite:///inventory.db"
+        return DEFAULT_SQLITE_URL
 
     candidate = raw_url.strip()
     if not candidate:
-        return "sqlite:///inventory.db"
+        return DEFAULT_SQLITE_URL
 
     if candidate.startswith("postgres://"):
         candidate = "postgresql://" + candidate[len("postgres://") :]
 
-    if candidate.startswith("postgresql://") and "sslmode=" not in candidate:
-        separator = "&" if "?" in candidate else "?"
-        candidate = f"{candidate}{separator}sslmode=require"
+    if not candidate.startswith("postgresql://"):
+        return candidate
 
-    return candidate
+    parsed = urlparse(candidate)
+    params = parse_qsl(parsed.query, keep_blank_values=True)
+    if not any(key.lower() == "sslmode" for key, _ in params):
+        params.append(("sslmode", "require"))
+
+    sanitized_netloc = parsed.netloc.strip()
+    normalized = parsed._replace(
+        scheme="postgresql",
+        netloc=sanitized_netloc,
+        query=urlencode(params),
+    )
+
+    hostname = (normalized.hostname or "").strip()
+    if hostname:
+        try:
+            socket.getaddrinfo(hostname, normalized.port or 5432)
+        except OSError as exc:
+            app.logger.warning(
+                "Unable to resolve database host '%s'; falling back to SQLite (%s). %s",
+                hostname,
+                DEFAULT_SQLITE_URL,
+                exc,
+            )
+            return DEFAULT_SQLITE_URL
+
+    return urlunparse(normalized)
 
 
 app.config["SQLALCHEMY_DATABASE_URI"] = _resolve_database_url(
