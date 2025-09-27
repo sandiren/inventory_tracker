@@ -1,6 +1,9 @@
 import os
-from datetime import datetime
+import socket
+from datetime import date, datetime
 from io import BytesIO
+from typing import Optional
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from flask import (
     Flask,
@@ -17,8 +20,55 @@ import qrcode
 
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///inventory.db"
+
+
+DEFAULT_SQLITE_URL = "sqlite:///inventory.db"
+
+
+def _resolve_database_url(raw_url: Optional[str]) -> str:
+    if raw_url is None:
+        return DEFAULT_SQLITE_URL
+
+    candidate = raw_url.strip()
+    if not candidate:
+        return DEFAULT_SQLITE_URL
+
+    if candidate.startswith("postgres://"):
+        candidate = "postgresql://" + candidate[len("postgres://") :]
+
+    if not candidate.startswith("postgresql://"):
+        return candidate
+
+    parsed = urlparse(candidate)
+    params = parse_qsl(parsed.query, keep_blank_values=True)
+    if not any(key.lower() == "sslmode" for key, _ in params):
+        params.append(("sslmode", "require"))
+
+    sanitized_netloc = parsed.netloc.strip()
+    normalized = parsed._replace(
+        scheme="postgresql",
+        netloc=sanitized_netloc,
+        query=urlencode(params),
+    )
+
+    hostname = (normalized.hostname or "").strip()
+    if hostname:
+        try:
+            socket.getaddrinfo(hostname, normalized.port or 5432)
+        except OSError as exc:
+            app.logger.warning(
+                "Unable to resolve database host '%s'; falling back to SQLite (%s). %s",
+                hostname,
+                DEFAULT_SQLITE_URL,
+                exc,
+            )
+            return DEFAULT_SQLITE_URL
+
+    return urlunparse(normalized)
+
+
+app.config["SQLALCHEMY_DATABASE_URI"] = _resolve_database_url(
+    os.environ.get("DATABASE_URL")
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
@@ -390,7 +440,7 @@ def delete_location(location_id: int):
     return jsonify({"status": "deleted"})
 
 
-def _parse_float(value):
+def _parse_float(value: Optional[str]) -> Optional[float]:
     if value in (None, ""):
         return None
     try:
@@ -400,7 +450,7 @@ def _parse_float(value):
         return None
 
 
-def _parse_date(value):
+def _parse_date(value: Optional[str]) -> Optional[date]:
     if value in (None, ""):
         return None
     try:
