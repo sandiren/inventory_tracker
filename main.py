@@ -54,16 +54,26 @@ def _derive_supabase_database_url() -> Optional[str]:
 
     host = os.environ.get("SUPABASE_DB_HOST")
 
-    if not project_ref and raw_url:
+    if raw_url:
         normalized_url = raw_url
         if "//" not in normalized_url:
             normalized_url = f"https://{normalized_url}"
         project_url = urlparse(normalized_url)
         candidate_host = project_url.netloc or project_url.path
-        if candidate_host.endswith("supabase.co"):
-            project_ref = candidate_host.split(".")[0]
-        if not host and candidate_host:
-            host = candidate_host
+        if candidate_host:
+            parts = candidate_host.split(".")
+            if candidate_host.endswith("supabase.co") and parts:
+                # Supabase REST URLs use <project_ref>.supabase.co while database
+                # hosts use db.<project_ref>.supabase.co. Normalize both cases so
+                # we can build the proper PostgreSQL hostname.
+                if parts[0] == "db" and len(parts) >= 2:
+                    project_ref = project_ref or parts[1]
+                else:
+                    project_ref = project_ref or parts[0]
+                if not host and project_ref:
+                    host = f"db.{project_ref}.supabase.co"
+            elif not host:
+                host = candidate_host
 
     if not host and project_ref:
         host = f"db.{project_ref}.supabase.co"
