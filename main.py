@@ -1,4 +1,6 @@
 import os
+from typing import Optional
+from urllib.parse import urlparse
 from datetime import datetime
 from io import BytesIO
 
@@ -14,12 +16,111 @@ from flask import (
 )
 from flask_sqlalchemy import SQLAlchemy
 import qrcode
+from dotenv import load_dotenv
 
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///inventory.db"
-)
+
+load_dotenv()
+
+
+def _derive_supabase_database_url() -> Optional[str]:
+    """Construct a PostgreSQL connection string from Supabase env vars."""
+
+    # Allow supplying a ready-made PostgreSQL URL via a few common Supabase vars.
+    for direct_var in ("SUPABASE_DB_URL", "SUPABASE_DIRECT_URL"):
+        direct_url = os.environ.get(direct_var)
+        if direct_url:
+            if direct_url.startswith("postgresql") and "sslmode=" not in direct_url:
+                separator = "&" if "?" in direct_url else "?"
+                return f"{direct_url}{separator}sslmode=require"
+            return direct_url
+
+    password = (
+        os.environ.get("SUPABASE_DB_PASSWORD")
+        or os.environ.get("SUPABASE_POSTGRES_PASSWORD")
+        or os.environ.get("POSTGRES_PASSWORD")
+    )
+    if not password:
+        return None
+
+    raw_url = (
+        os.environ.get("SUPABASE_URL")
+        or os.environ.get("SUPABASE_PROJECT_URL")
+        or os.environ.get("SUPABASE_HOST")
+    )
+    project_ref = (
+        os.environ.get("SUPABASE_PROJECT_REF")
+        or os.environ.get("SUPABASE_PROJECT_REFERENCE")
+        or os.environ.get("PROJECT_REF")
+    )
+
+    host = os.environ.get("SUPABASE_DB_HOST")
+
+    if raw_url:
+        normalized_url = raw_url
+        if "//" not in normalized_url:
+            normalized_url = f"https://{normalized_url}"
+        project_url = urlparse(normalized_url)
+        candidate_host = project_url.netloc or project_url.path
+        if candidate_host:
+            parts = candidate_host.split(".")
+            if candidate_host.endswith("supabase.co") and parts:
+                # Supabase REST URLs use <project_ref>.supabase.co while database
+                # hosts use db.<project_ref>.supabase.co. Normalize both cases so
+                # we can build the proper PostgreSQL hostname.
+                if parts[0] == "db" and len(parts) >= 2:
+                    project_ref = project_ref or parts[1]
+                else:
+                    project_ref = project_ref or parts[0]
+                if not host and project_ref:
+                    host = f"db.{project_ref}.supabase.co"
+            elif not host:
+                host = candidate_host
+
+    if not host and project_ref:
+        host = f"db.{project_ref}.supabase.co"
+
+    if not host:
+        return None
+
+    user = os.environ.get("SUPABASE_DB_USER", "postgres")
+    db_name = os.environ.get("SUPABASE_DB_NAME", "postgres")
+    port = os.environ.get("SUPABASE_DB_PORT", "5432")
+
+    from urllib.parse import quote_plus
+
+    safe_user = quote_plus(user)
+    safe_password = quote_plus(password)
+    safe_db_name = quote_plus(db_name)
+
+    return (
+        "postgresql://"
+        f"{safe_user}:{safe_password}@{host}:{port}/{safe_db_name}?sslmode=require"
+    )
+
+
+database_url = os.environ.get("DATABASE_URL") or _derive_supabase_database_url()
+if not database_url:
+    database_url = "sqlite:///inventory.db"
+    app.logger.warning(
+        "Falling back to local SQLite storage. Set DATABASE_URL or Supabase "
+        "environment variables to use PostgreSQL instead."
+    )
+else:
+    if database_url.startswith("postgresql"):
+        app.logger.info("Using PostgreSQL database backend")
+    else:
+        app.logger.info(
+            "Using database configuration supplied via DATABASE_URL environment variable"
+        )
+
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+if database_url.startswith("postgresql") and "sslmode=" not in database_url:
+    app.config.setdefault(
+        "SQLALCHEMY_ENGINE_OPTIONS", {"connect_args": {"sslmode": "require"}}
+    )
+
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
 
