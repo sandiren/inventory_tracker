@@ -75,11 +75,11 @@
     </div>
     <div class="col-md-6">
       <label class="form-label" for="gps_lat">GPS Latitude</label>
-      <input class="form-control" id="gps_lat" name="gps_lat" value="{{ item.gps_lat if item and item.gps_lat is not none else '' }}" readonly>
+      <input class="form-control" id="gps_lat" name="gps_lat" value="{{ item.gps_lat if item and item.gps_lat is not none else '' }}">
     </div>
     <div class="col-md-6">
       <label class="form-label" for="gps_lng">GPS Longitude</label>
-      <input class="form-control" id="gps_lng" name="gps_lng" value="{{ item.gps_lng if item and item.gps_lng is not none else '' }}" readonly>
+      <input class="form-control" id="gps_lng" name="gps_lng" value="{{ item.gps_lng if item and item.gps_lng is not none else '' }}">
     </div>
     <div class="col-md-6">
       <label class="form-label" for="maintenance_due">Next Maintenance (YYYY-MM-DD)</label>
@@ -537,30 +537,34 @@
       });
       let marker = null;
 
-      function setMarker(lat, lng) {
+      function updateMarkerPosition(lat, lng) {
         if (Number.isNaN(lat) || Number.isNaN(lng)) {
           return;
         }
-
-        const formattedLat = lat.toFixed(6);
-        const formattedLng = lng.toFixed(6);
-
-        latInput.value = formattedLat;
-        lngInput.value = formattedLng;
-
         if (marker) {
           marker.setLatLng([lat, lng]);
         } else {
           marker = L.marker([lat, lng], { draggable: true }).addTo(map);
           marker.on('dragend', (event) => {
             const coords = event.target.getLatLng();
-            setMarker(coords.lat, coords.lng);
+            updateCoordinates(coords.lat, coords.lng);
           });
         }
       }
 
+      function updateCoordinates(lat, lng) {
+        if (Number.isNaN(lat) || Number.isNaN(lng)) {
+          return;
+        }
+        const formattedLat = lat.toFixed(6);
+        const formattedLng = lng.toFixed(6);
+        latInput.value = formattedLat;
+        lngInput.value = formattedLng;
+        updateMarkerPosition(lat, lng);
+      }
+
       if (hasDefaultCoords) {
-        setMarker(defaultLat, defaultLng);
+        updateCoordinates(defaultLat, defaultLng);
       }
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -573,8 +577,22 @@
       });
 
       map.on('click', function(event) {
-        setMarker(event.latlng.lat, event.latlng.lng);
+        updateCoordinates(event.latlng.lat, event.latlng.lng);
       });
+
+      function syncMarkerToInputs() {
+        const lat = parseFloat(latInput.value);
+        const lng = parseFloat(lngInput.value);
+        if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+          const clampedLat = Math.max(-90, Math.min(90, lat));
+          const clampedLng = Math.max(-180, Math.min(180, lng));
+          updateMarkerPosition(clampedLat, clampedLng);
+          map.setView([clampedLat, clampedLng], map.getZoom() < 13 ? 13 : map.getZoom());
+        }
+      }
+
+      latInput.addEventListener('input', syncMarkerToInputs);
+      lngInput.addEventListener('input', syncMarkerToInputs);
 
       document.getElementById('use-my-location').addEventListener('click', function() {
         if (!navigator.geolocation) {
@@ -585,7 +603,7 @@
         navigator.geolocation.getCurrentPosition(function(position) {
           const { latitude, longitude } = position.coords;
           map.setView([latitude, longitude], 15);
-          setMarker(latitude, longitude);
+          updateCoordinates(latitude, longitude);
         }, function() {
           alert('Unable to retrieve your location. Please allow location access or select on the map.');
         });
