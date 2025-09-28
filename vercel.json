@@ -1,8 +1,6 @@
 {
-  "functions": {
-    "apps/flask/api/index.py": { "runtime": "python3.03" }
-  },
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "routes": [
-    { "src": "/(.*)", "dest": "apps/flask/api/index.py" }
+    { "src": "/(.*)", "dest": "/api/index.py" }
   ]
 }
