@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from io import BytesIO
 
+from dotenv import load_dotenv
 from flask import (
     Flask,
     flash,
@@ -16,6 +17,7 @@ from flask_sqlalchemy import SQLAlchemy
 import qrcode
 
 
+load_dotenv()
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     "DATABASE_URL", "sqlite:///inventory.db"
@@ -24,6 +26,19 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
 
 db = SQLAlchemy(app)
+
+
+@app.after_request
+def add_security_headers(response):
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' https://cdn.jsdelivr.net https://unpkg.com; "
+        "style-src 'self' https://cdn.jsdelivr.net https://unpkg.com 'unsafe-inline'; "
+        "img-src 'self' https://*.tile.openstreetmap.org data:; "
+        "connect-src 'self';"
+    )
+    response.headers["Content-Security-Policy"] = csp
+    return response
 
 
 class Category(db.Model):

@@ -2,6 +2,15 @@
 
 {% block title %}{{ item.name }} - Inventory Tracker{% endblock %}
 
+{% block extra_head %}
+  {{ super() }}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-sA+vx6kGPR/HIcPp3dGVi8nrpGL21Yw9A4JHFKZ3h0=" crossorigin="" />
+  <style>
+    #item-location-map { height: 250px; }
+  </style>
+{% endblock %}
+
 {% block content %}
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
@@ -88,6 +97,9 @@
       <div class="card">
         <div class="card-header">GPS Tracking</div>
         <div class="card-body">
+          {% if item.gps_lat is not none and item.gps_lng is not none %}
+            <div id="item-location-map" class="rounded border mb-3"></div>
+          {% endif %}
           <p class="mb-2">Current Coordinates:</p>
           <p class="fw-semibold">{{ item.gps_lat or '—' }}, {{ item.gps_lng or '—' }}</p>
           <form class="row g-2" method="post" action="{{ url_for('update_gps', item_id=item.id) }}">
@@ -107,4 +119,35 @@
       </div>
     </div>
   </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ super() }}
+  {% if item.gps_lat is not none and item.gps_lng is not none %}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-DvN1M36zrHfX5Yucs5cjoxOYD65Zj50sC1LFp6Z3A6A=" crossorigin=""></script>
+  <script>
+    (function() {
+      const lat = {{ item.gps_lat }};
+      const lng = {{ item.gps_lng }};
+
+      const map = L.map('item-location-map', {
+        center: [lat, lng],
+        zoom: 14,
+        zoomControl: true
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+      }).addTo(map);
+
+      L.marker([lat, lng]).addTo(map);
+
+      requestAnimationFrame(() => {
+        map.invalidateSize();
+      });
+    })();
+  </script>
+  {% endif %}
 {% endblock %}
