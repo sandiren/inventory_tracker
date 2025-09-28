@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from io import BytesIO
+from typing import Optional, Any
 
 from dotenv import load_dotenv
 from flask import (
@@ -321,7 +322,7 @@ def update_category(category_id: int):
     if not name:
         return jsonify({"error": "Category name is required."}), 400
 
-    existing = Category.query.filter(
+    existing: Optional[Any] = Category.query.filter(
         db.func.lower(Category.name) == name.lower(), Category.id != category.id
     ).first()
     if existing:
