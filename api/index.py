@@ -1,6 +1,7 @@
-from flask import Flask, jsonify
-app = Flask(__name__)
+# api/index.py
+from app import app            # reuse the existing Flask app from app.py
+from flask import jsonify
 
-@app.get("/api/health")
+@app.get("/health")            # keep path simple; you'll hit /health
 def health():
-  return jsonify(ok=True)
+    return jsonify(ok=True)
