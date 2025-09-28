@@ -21,8 +21,11 @@ import qrcode
 
 app = Flask(__name__)
 load_dotenv()
+#app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
+ #   "DATABASE_URL", "sqlite:///inventory.db"
+#)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///inventory.db"
+    "DATABASE_URL"
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
@@ -459,7 +462,13 @@ def _generate_qr_png(data: str) -> BytesIO:
 
 #with app.app_context():
     #db.create_all()
-
+@app.before_request
+def _ensure_db_once():
+    # only run create_all when you explicitly set a flag
+    if os.getenv("RUN_DB_INIT") == "1" and not getattr(app, "_db_ready", False):
+        with app.app_context():
+            db.create_all()
+        app._db_ready = True
 
 if __name__ == "__main__":
     app.run(debug=True)
