@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from io import BytesIO
 
+from dotenv import load_dotenv
 from flask import (
     Flask,
     flash,
@@ -16,6 +17,7 @@ from flask_sqlalchemy import SQLAlchemy
 import qrcode
 
 
+load_dotenv()
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     "DATABASE_URL", "sqlite:///inventory.db"
