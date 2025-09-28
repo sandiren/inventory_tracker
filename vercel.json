@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "apps/flask/api/index.py": { "runtime": "python3.03" }
+  },
+  "routes": [
+    { "src": "/(.*)", "dest": "apps/flask/api/index.py" }
+  ]
+}
