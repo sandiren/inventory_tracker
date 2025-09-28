@@ -18,8 +18,9 @@ import qrcode
 
 
 
-load_dotenv()
+
 app = Flask(__name__)
+load_dotenv()
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     "DATABASE_URL", "sqlite:///inventory.db"
 )
