@@ -461,8 +461,8 @@ def _generate_qr_png(data: str) -> BytesIO:
     return buffer
 
 
-#with app.app_context():
-    #db.create_all()
+with app.app_context():
+    db.create_all()
 @app.before_request
 def _ensure_db_once():
     # only run create_all when you explicitly set a flag
