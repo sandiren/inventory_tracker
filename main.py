@@ -28,6 +28,19 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
 db = SQLAlchemy(app)
 
 
+@app.after_request
+def add_security_headers(response):
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' https://cdn.jsdelivr.net https://unpkg.com; "
+        "style-src 'self' https://cdn.jsdelivr.net https://unpkg.com 'unsafe-inline'; "
+        "img-src 'self' https://*.tile.openstreetmap.org data:; "
+        "connect-src 'self';"
+    )
+    response.headers["Content-Security-Policy"] = csp
+    return response
+
+
 class Category(db.Model):
     __tablename__ = "categories"
 
