@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}New job{% endblock %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Create job</h1>
+    <p class="lede">Define the work window, then add equipment requirements.</p>
+  </div>
+</section>
+<form method="post" class="form-grid panel">
+  <label>Code<input name="code" required placeholder="JOB-1003"></label>
+  <label>Title<input name="title" required placeholder="Plant room install"></label>
+  <label>Site<input name="site_name" required placeholder="Riverside Block B"></label>
+  <label>Starts at<input type="datetime-local" name="starts_at" required></label>
+  <label>Ends at<input type="datetime-local" name="ends_at" required></label>
+  <label class="full">Notes<textarea name="notes" rows="3"></textarea></label>
+  <div class="full actions">
+    <a class="btn btn-ghost" href="{{ url_for('jobs.index') }}">Cancel</a>
+    <button class="btn btn-primary" type="submit">Create job</button>
+  </div>
+</form>
+{% endblock %}

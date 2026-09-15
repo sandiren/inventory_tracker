@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}{{ job.code }}{% endblock %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">{{ job.code }}</p>
+    <h1>{{ job.title }}</h1>
+    <p class="lede">{{ job.site_name }} · {{ job.starts_at.strftime('%d %b %Y %H:%M') }} – {{ job.ends_at.strftime('%d %b %H:%M') }}</p>
+  </div>
+  <span class="pill pill-{{ readiness.status|lower }}">{{ readiness.status }}</span>
+</section>
+
+<section class="split">
+  <div class="panel">
+    <h2>Readiness reasons</h2>
+    <ul class="reason-list">
+      {% for reason in readiness.reasons %}
+      <li class="severity-{{ reason.severity }}">
+        <strong>{{ reason.message }}</strong>
+        <span>{{ reason.corrective_action }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="panel">
+    <h2>Add requirement</h2>
+    {% if current_user.is_manager %}
+    <form method="post" action="{{ url_for('jobs.add_requirement', job_id=job.id) }}" class="stack">
+      <label>From template
+        <select name="template_id">
+          <option value="">Custom…</option>
+          {% for template in templates %}
+          <option value="{{ template.id }}">{{ template.name }} ({{ template.category }})</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Custom label<input name="label" placeholder="Optional if template selected"></label>
+      <label>Category<input name="category" placeholder="MEWP"></label>
+      <label class="check"><input type="checkbox" name="is_critical" checked> Critical</label>
+      <label class="check"><input type="checkbox" name="verification_required" checked> Verification required</label>
+      <button class="btn btn-primary" type="submit">Add requirement</button>
+    </form>
+    {% else %}
+    <p class="muted">Managers add requirements.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Requirements & reservations</h2>
+  {% for req in job.requirements %}
+  <article class="req-block">
+    <header>
+      <strong>{{ req.label }}</strong>
+      <span class="muted">{{ req.category }}{% if req.is_critical %} · critical{% endif %}{% if req.verification_required %} · verify{% endif %}</span>
+    </header>
+    {% set active = req.reservations|selectattr('status', 'in', ['held','issued'])|list %}
+    {% if active %}
+      {% for reservation in active %}
+      <div class="reservation-row">
+        <div>
+          <a href="{{ url_for('equipment.detail', asset_id=reservation.asset_id) }}">{{ reservation.asset.tag }}</a>
+          · {{ reservation.asset.name }} · <span class="pill">{{ reservation.status }}</span>
+        </div>
+        {% if current_user.is_manager and reservation.status == 'held' %}
+        <form method="post" action="{{ url_for('jobs.cancel', reservation_id=reservation.id) }}">
+          <button class="btn btn-ghost btn-sm" type="submit">Cancel</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <form method="post" action="{{ url_for('jobs.reserve', job_id=job.id) }}" class="inline-form">
+        <input type="hidden" name="requirement_id" value="{{ req.id }}">
+        <select name="asset_id" required>
+          <option value="">Reserve asset…</option>
+          {% for asset in candidates.get(req.id, []) %}
+          <option value="{{ asset.id }}">{{ asset.tag }} · {{ asset.name }} · {{ asset.status }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-secondary btn-sm" type="submit">Reserve</button>
+      </form>
+    {% endif %}
+  </article>
+  {% else %}
+  <p class="muted">No requirements yet.</p>
+  {% endfor %}
+</section>
+{% endblock %}

@@ -1,51 +1,86 @@
-# Inventory Tracker
+# Equipment Readiness (Datravia)
 
-A Flask-based web application to manage construction inventory with QR code generation, GPS tracking, and maintenance scheduling.
+## What it is (plain English)
 
-## Features
+**Equipment Readiness** helps contractors and M&E teams keep track of tools and plant.
 
-- Dashboard overview with status counts and maintenance alerts
-- Add, edit, and delete inventory items
-- Generate QR codes for quick access to item detail pages
-- Check items in and out while tracking last activity
-- Schedule maintenance and record notes
-- Store GPS coordinates and visualize assets on an interactive map
+Use it to:
 
-## Getting Started
+1. **See what kit you have** and where it is  
+2. **Book gear to a job** so two crews do not claim the same asset  
+3. **Check items out and back in** with a clear trail of who had them  
+4. **Spot blockers early** — missing kit, overdue checks, or unverified equipment — before the crew leaves the yard  
 
-1. Create and activate a virtual environment (optional):
+In short: *know what you have, who has it, and whether a job can start.*
 
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   ```
+> Readiness is an **operational aid**, not a safety certification.
 
-2. Install dependencies:
+---
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+Flask + Jinja operations app. The pilot adds protected custody, job requirements, reservations, deterministic readiness, and a field scan loop — while preserving the legacy inventory screens.
 
-3. Run the application:
+## Pilot features
 
-   ```bash
-   flask --app main run
-   ```
+- Manager / operator login (protected routes)
+- Individually tagged assets with append-only custody events
+- Idempotent issue & return
+- Jobs → requirements (templates) → reservations with conflict checks
+- Job-specific verification
+- Deterministic readiness: **Ready / Blocked / Unverified**
+- Today board, Jobs, Equipment, Scan UI (Datravia branding)
+- Legacy inventory + map retained under `/inventory…`
 
-   The development server runs on `http://127.0.0.1:5000/`.
+## Local setup (isolated Postgres)
 
-## Usage Tips
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 
-- Use the **Add Item** button to register new equipment or materials.
-- Print the QR code for each item and affix it to the asset to quickly open the item detail page.
-- Update GPS coordinates manually from the item detail page or via the API endpoint `/api/items` if integrating with external trackers.
-- Visit the **Map View** to see all assets with GPS coordinates plotted on a map.
+export DATABASE_URL=postgresql://USER:PASS@127.0.0.1:5432/equipment_readiness_pilot
+export SECRET_KEY=change-me
 
-## Database
+flask --app app:app init-db
+flask --app app:app seed-demo
+flask --app app:app run --host 127.0.0.1 --port 5000
+```
 
-The application uses SQLite (`inventory.db`) by default. Tables are created automatically on the first request.
+### Seed users
 
-## Environment Variables
+| Email | Password | Role |
+|-------|----------|------|
+| manager@datravia.local | Manager123! | manager |
+| operator@datravia.local | Operator123! | operator |
 
-- `SECRET_KEY`: Override the default Flask secret key for production deployments.
-- `DATABASE_URL`: If set, the app will use this connection string instead of the local SQLite database.
+## Tests
+
+```bash
+pytest -q tests/test_acceptance.py
+```
+
+## Docs
+
+- Brief: `docs/equipment-readiness-mvp-agent-brief.md`
+- Handover: `docs/equipment-readiness-mvp-handover.md`
+
+## Environment
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Postgres URL (**required on Vercel**). Prefer the pooled connection string and include `?sslmode=require` for Supabase/Neon. |
+| `SECRET_KEY` | Flask session secret (**required on Vercel**) |
+| `INIT_DB_ON_BOOT` | Set to `1` once on an empty hosted DB to create tables and load seed users, then remove it |
+
+### Vercel sign-in 500s
+
+If login shows **Internal Server Error**, open `/health` on the deployment:
+
+- `"database": "down"` → `DATABASE_URL` missing/wrong, or SSL/network blocked
+- `"users": 0` → schema empty; run `flask --app app:app init-db` + `seed-demo`, or temporarily set `INIT_DB_ON_BOOT=1`
+
+Seed logins (after seed):
+
+- `manager@datravia.local` / `Manager123!`
+- `operator@datravia.local` / `Operator123!`
+
+Do not point this pilot at production data without an explicit migration plan.

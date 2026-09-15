@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Today{% endblock %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Operations board</p>
+    <h1>Today</h1>
+    <p class="lede">Your yard and site kit at a glance — what is ready to go, what is blocked, and what still needs a check before work starts.</p>
+  </div>
+  <div class="header-actions">
+    <a class="btn btn-secondary" href="{{ url_for('equipment.scan') }}">Scan asset</a>
+    {% if current_user.is_manager %}
+    <a class="btn btn-primary" href="{{ url_for('jobs.create') }}">New job</a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="card-grid">
+  {% for card in cards %}
+  {% set r = card.readiness %}
+  <article class="decision-card status-{{ r.status|lower }}">
+    <header>
+      <span class="pill pill-{{ r.status|lower }}">{{ r.status }}</span>
+      <a href="{{ url_for('jobs.detail', job_id=card.job.id) }}"><strong>{{ card.job.code }}</strong> · {{ card.job.title }}</a>
+    </header>
+    <p class="meta">{{ card.job.site_name }} · {{ card.job.starts_at.strftime('%d %b %H:%M') }} – {{ card.job.ends_at.strftime('%H:%M') }}</p>
+    <ul class="reason-list">
+      {% for reason in r.reasons[:4] %}
+      <li>
+        <strong>{{ reason.message }}</strong>
+        <span>{{ reason.corrective_action }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <a class="text-link" href="{{ url_for('jobs.detail', job_id=card.job.id) }}">Open job</a>
+  </article>
+  {% else %}
+  <div class="empty-state">No jobs in the next 48 hours. Create a job to start the readiness loop.</div>
+  {% endfor %}
+</section>
+
+<section class="panel">
+  <h2>Open follow-ups</h2>
+  {% if actions %}
+  <ul class="action-list">
+    {% for action in actions %}
+    <li class="severity-{{ action.severity }}">
+      <div>
+        <strong>{{ action.reason }}</strong>
+        <p>{{ action.corrective_action }}</p>
+      </div>
+      {% if action.job_id %}
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('jobs.detail', job_id=action.job_id) }}">Resolve</a>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No open follow-ups.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}{{ asset.tag }}{% endblock %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">{{ asset.category or 'Asset' }}</p>
+    <h1>{{ asset.tag }}</h1>
+    <p class="lede">{{ asset.name }} · {{ asset.location or 'No location' }} · <span class="pill">{{ asset.status }}</span></p>
+  </div>
+</section>
+
+<section class="split">
+  <div class="panel">
+    <h2>Details</h2>
+    <dl class="kv">
+      <dt>Serial</dt><dd>{{ asset.serial_number or '—' }}</dd>
+      <dt>Maintenance due</dt><dd>{{ asset.maintenance_due or '—' }}</dd>
+      <dt>Last verified</dt><dd>{{ asset.last_verified_at.strftime('%Y-%m-%d %H:%M') if asset.last_verified_at else '—' }}</dd>
+      <dt>Verification expires</dt><dd>{{ asset.verification_expires_at.strftime('%Y-%m-%d %H:%M') if asset.verification_expires_at else '—' }}</dd>
+      <dt>Condition</dt><dd>{{ asset.condition_notes or '—' }}</dd>
+    </dl>
+
+    <h3>Active reservations</h3>
+    {% for reservation in reservations %}
+    <p>{{ reservation.job.code }} · {{ reservation.status }} · {{ reservation.starts_at.strftime('%d %b') }}</p>
+    {% else %}
+    <p class="muted">None</p>
+    {% endfor %}
+  </div>
+
+  <div class="panel stack">
+    <h2>Field actions</h2>
+    <form method="post" action="{{ url_for('equipment.verify', asset_id=asset.id) }}" class="stack">
+      <h3>Verify for job</h3>
+      <select name="job_id" required>
+        <option value="">Select job…</option>
+        {% for job in jobs %}
+        <option value="{{ job.id }}">{{ job.code }} · {{ job.title }}</option>
+        {% endfor %}
+      </select>
+      <select name="result">
+        <option value="pass">Pass</option>
+        <option value="fail">Fail</option>
+      </select>
+      <input name="valid_hours" type="number" min="1" value="24" title="Valid hours">
+      <input name="notes" placeholder="Verification notes">
+      <button class="btn btn-secondary" type="submit">Record verification</button>
+    </form>
+
+    <form method="post" action="{{ url_for('equipment.issue', asset_id=asset.id) }}" class="stack">
+      <h3>Issue</h3>
+      <input type="hidden" name="idempotency_key" value="{{ idem_key }}-issue">
+      <select name="job_id" required>
+        <option value="">Select job…</option>
+        {% for job in jobs %}
+        <option value="{{ job.id }}">{{ job.code }} · {{ job.title }}</option>
+        {% endfor %}
+      </select>
+      <input name="notes" placeholder="Issue notes">
+      <button class="btn btn-primary" type="submit">Issue to job</button>
+    </form>
+
+    <form method="post" action="{{ url_for('equipment.return_', asset_id=asset.id) }}" class="stack">
+      <h3>Return</h3>
+      <input type="hidden" name="idempotency_key" value="{{ idem_key }}-return">
+      <select name="condition_ok">
+        <option value="yes">Condition OK</option>
+        <option value="no">Condition issue → maintenance</option>
+      </select>
+      <input name="notes" placeholder="Return notes">
+      <button class="btn btn-secondary" type="submit">Return asset</button>
+    </form>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Custody history</h2>
+  <ul class="timeline">
+    {% for event in events %}
+    <li>
+      <time>{{ event.created_at.strftime('%Y-%m-%d %H:%M') }}</time>
+      <strong>{{ event.event_type }}</strong>
+      <span class="muted">{% if event.actor %}{{ event.actor.name }}{% else %}system{% endif %}</span>
+    </li>
+    {% else %}
+    <li class="muted">No events yet.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}
