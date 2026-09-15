@@ -67,7 +67,20 @@ pytest -q tests/test_acceptance.py
 
 | Variable | Purpose |
 |----------|---------|
-| `DATABASE_URL` | SQLAlchemy URL (use Postgres for the pilot) |
-| `SECRET_KEY` | Flask session secret |
+| `DATABASE_URL` | Postgres URL (**required on Vercel**). Prefer the pooled connection string and include `?sslmode=require` for Supabase/Neon. |
+| `SECRET_KEY` | Flask session secret (**required on Vercel**) |
+| `INIT_DB_ON_BOOT` | Set to `1` once on an empty hosted DB to create tables and load seed users, then remove it |
+
+### Vercel sign-in 500s
+
+If login shows **Internal Server Error**, open `/health` on the deployment:
+
+- `"database": "down"` → `DATABASE_URL` missing/wrong, or SSL/network blocked
+- `"users": 0` → schema empty; run `flask --app app:app init-db` + `seed-demo`, or temporarily set `INIT_DB_ON_BOOT=1`
+
+Seed logins (after seed):
+
+- `manager@datravia.local` / `Manager123!`
+- `operator@datravia.local` / `Operator123!`
 
 Do not point this pilot at production data without an explicit migration plan.
