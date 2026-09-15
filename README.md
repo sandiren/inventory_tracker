@@ -1,8 +1,23 @@
 # Equipment Readiness (Datravia)
 
-Flask + Jinja operations app for contractor / M&E teams. The Equipment Readiness pilot adds protected custody, job requirements, reservations, deterministic readiness, and a field scan loop — while preserving the legacy inventory screens.
+## What it is (plain English)
+
+**Equipment Readiness** helps contractors and M&E teams keep track of tools and plant.
+
+Use it to:
+
+1. **See what kit you have** and where it is  
+2. **Book gear to a job** so two crews do not claim the same asset  
+3. **Check items out and back in** with a clear trail of who had them  
+4. **Spot blockers early** — missing kit, overdue checks, or unverified equipment — before the crew leaves the yard  
+
+In short: *know what you have, who has it, and whether a job can start.*
 
 > Readiness is an **operational aid**, not a safety certification.
+
+---
+
+Flask + Jinja operations app. The pilot adds protected custody, job requirements, reservations, deterministic readiness, and a field scan loop — while preserving the legacy inventory screens.
 
 ## Pilot features
 
