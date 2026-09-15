@@ -1,51 +1,58 @@
-# Inventory Tracker
+# Equipment Readiness (Datravia)
 
-A Flask-based web application to manage construction inventory with QR code generation, GPS tracking, and maintenance scheduling.
+Flask + Jinja operations app for contractor / M&E teams. The Equipment Readiness pilot adds protected custody, job requirements, reservations, deterministic readiness, and a field scan loop — while preserving the legacy inventory screens.
 
-## Features
+> Readiness is an **operational aid**, not a safety certification.
 
-- Dashboard overview with status counts and maintenance alerts
-- Add, edit, and delete inventory items
-- Generate QR codes for quick access to item detail pages
-- Check items in and out while tracking last activity
-- Schedule maintenance and record notes
-- Store GPS coordinates and visualize assets on an interactive map
+## Pilot features
 
-## Getting Started
+- Manager / operator login (protected routes)
+- Individually tagged assets with append-only custody events
+- Idempotent issue & return
+- Jobs → requirements (templates) → reservations with conflict checks
+- Job-specific verification
+- Deterministic readiness: **Ready / Blocked / Unverified**
+- Today board, Jobs, Equipment, Scan UI (Datravia branding)
+- Legacy inventory + map retained under `/inventory…`
 
-1. Create and activate a virtual environment (optional):
+## Local setup (isolated Postgres)
 
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   ```
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 
-2. Install dependencies:
+export DATABASE_URL=postgresql://USER:PASS@127.0.0.1:5432/equipment_readiness_pilot
+export SECRET_KEY=change-me
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+flask --app app:app init-db
+flask --app app:app seed-demo
+flask --app app:app run --host 127.0.0.1 --port 5000
+```
 
-3. Run the application:
+### Seed users
 
-   ```bash
-   flask --app main run
-   ```
+| Email | Password | Role |
+|-------|----------|------|
+| manager@datravia.local | Manager123! | manager |
+| operator@datravia.local | Operator123! | operator |
 
-   The development server runs on `http://127.0.0.1:5000/`.
+## Tests
 
-## Usage Tips
+```bash
+pytest -q tests/test_acceptance.py
+```
 
-- Use the **Add Item** button to register new equipment or materials.
-- Print the QR code for each item and affix it to the asset to quickly open the item detail page.
-- Update GPS coordinates manually from the item detail page or via the API endpoint `/api/items` if integrating with external trackers.
-- Visit the **Map View** to see all assets with GPS coordinates plotted on a map.
+## Docs
 
-## Database
+- Brief: `docs/equipment-readiness-mvp-agent-brief.md`
+- Handover: `docs/equipment-readiness-mvp-handover.md`
 
-The application uses SQLite (`inventory.db`) by default. Tables are created automatically on the first request.
+## Environment
 
-## Environment Variables
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | SQLAlchemy URL (use Postgres for the pilot) |
+| `SECRET_KEY` | Flask session secret |
 
-- `SECRET_KEY`: Override the default Flask secret key for production deployments.
-- `DATABASE_URL`: If set, the app will use this connection string instead of the local SQLite database.
+Do not point this pilot at production data without an explicit migration plan.

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Jobs{% endblock %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Work packages</p>
+    <h1>Jobs</h1>
+  </div>
+  {% if current_user.is_manager %}
+  <a class="btn btn-primary" href="{{ url_for('jobs.create') }}">New job</a>
+  {% endif %}
+</section>
+<div class="table-wrap">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Code</th>
+        <th>Title</th>
+        <th>Site</th>
+        <th>Window</th>
+        <th>Readiness</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for card in cards %}
+      <tr>
+        <td><a href="{{ url_for('jobs.detail', job_id=card.job.id) }}">{{ card.job.code }}</a></td>
+        <td>{{ card.job.title }}</td>
+        <td>{{ card.job.site_name }}</td>
+        <td>{{ card.job.starts_at.strftime('%d %b %H:%M') }}</td>
+        <td><span class="pill pill-{{ card.readiness.status|lower }}">{{ card.readiness.status }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">No jobs yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

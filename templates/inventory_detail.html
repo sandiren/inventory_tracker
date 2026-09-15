@@ -9,9 +9,9 @@
       <p class="text-muted mb-0">Status: <strong class="text-capitalize">{{ item.status.replace('_', ' ') }}</strong></p>
     </div>
     <div class="btn-group" role="group">
-      <a class="btn btn-outline-secondary" href="{{ url_for('inventory_qr', item_id=item.id) }}" target="_blank">Download QR</a>
-      <a class="btn btn-outline-primary" href="{{ url_for('edit_inventory', item_id=item.id) }}">Edit</a>
-      <form class="d-inline" method="post" action="{{ url_for('delete_inventory', item_id=item.id) }}" onsubmit="return confirm('Delete this item?');">
+      <a class="btn btn-outline-secondary" href="{{ url_for('legacy.inventory_qr', item_id=item.id) }}" target="_blank">Download QR</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('legacy.edit_inventory', item_id=item.id) }}">Edit</a>
+      <form class="d-inline" method="post" action="{{ url_for('legacy.delete_inventory', item_id=item.id) }}" onsubmit="return confirm('Delete this item?');">
         <button class="btn btn-outline-danger" type="submit">Delete</button>
       </form>
     </div>
@@ -51,7 +51,7 @@
             <strong>{{ item.maintenance_due.strftime('%Y-%m-%d') if item.maintenance_due else 'Not set' }}</strong>
           </p>
           <p class="text-muted">{{ item.maintenance_notes or 'No notes provided.' }}</p>
-          <form class="row g-3" method="post" action="{{ url_for('schedule_maintenance', item_id=item.id) }}">
+          <form class="row g-3" method="post" action="{{ url_for('legacy.schedule_maintenance', item_id=item.id) }}">
             <div class="col-md-6">
               <label class="form-label" for="maintenance_due">Maintenance Date</label>
               <input class="form-control" id="maintenance_due" name="maintenance_due" type="date" value="{{ item.maintenance_due.strftime('%Y-%m-%d') if item.maintenance_due else '' }}">
@@ -72,14 +72,14 @@
       <div class="card mb-4">
         <div class="card-header">Check In / Out</div>
         <div class="card-body">
-          <form class="mb-3" method="post" action="{{ url_for('checkout_inventory', item_id=item.id) }}">
+          <form class="mb-3" method="post" action="{{ url_for('legacy.checkout_inventory', item_id=item.id) }}">
             <div class="mb-3">
               <label class="form-label" for="checkout_location">Checkout Location</label>
               <input class="form-control" id="checkout_location" name="checkout_location" placeholder="Job site, crew, etc.">
             </div>
             <button class="btn btn-warning w-100" type="submit">Check Out</button>
           </form>
-          <form method="post" action="{{ url_for('checkin_inventory', item_id=item.id) }}">
+          <form method="post" action="{{ url_for('legacy.checkin_inventory', item_id=item.id) }}">
             <button class="btn btn-success w-100" type="submit">Check In</button>
           </form>
         </div>
@@ -90,7 +90,7 @@
         <div class="card-body">
           <p class="mb-2">Current Coordinates:</p>
           <p class="fw-semibold">{{ item.gps_lat or '—' }}, {{ item.gps_lng or '—' }}</p>
-          <form class="row g-2" method="post" action="{{ url_for('update_gps', item_id=item.id) }}">
+          <form class="row g-2" method="post" action="{{ url_for('legacy.update_gps', item_id=item.id) }}">
             <div class="col-6">
               <label class="form-label" for="gps_lat">Latitude</label>
               <input class="form-control" id="gps_lat" name="gps_lat" value="{{ item.gps_lat or '' }}">

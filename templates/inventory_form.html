@@ -90,7 +90,7 @@
       <textarea class="form-control" id="maintenance_notes" name="maintenance_notes" rows="3">{{ item.maintenance_notes if item else '' }}</textarea>
     </div>
     <div class="col-12 d-flex justify-content-between">
-      <a class="btn btn-outline-secondary" href="{{ url_for('dashboard') }}">Cancel</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('legacy.inventory_dashboard') }}">Cancel</a>
       <button class="btn btn-primary" type="submit">{{ action }}</button>
     </div>
   </form>

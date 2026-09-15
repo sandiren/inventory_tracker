@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Scan{% endblock %}
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Scan / look up</h1>
+    <p class="lede">Enter an asset tag from a QR label or stencil.</p>
+  </div>
+</section>
+<form method="post" class="scan-panel panel" action="{{ url_for('equipment.scan') }}">
+  <label for="tag">Asset tag
+    <input id="tag" name="tag" value="{{ tag or '' }}" autofocus autocomplete="off" placeholder="MEWP-001" required minlength="2">
+  </label>
+  <button class="btn btn-primary btn-lg" type="submit">Open asset</button>
+</form>
+<p class="hint">Tip: paste a tag such as <code>MEWP-001</code>, then tap Open asset.</p>
+{% endblock %}

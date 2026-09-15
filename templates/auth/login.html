@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<section class="auth-shell">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span class="brand-mark lg"></span>
+      <h1>Equipment Readiness</h1>
+      <p>Protected custody and site readiness for contractors · Datravia</p>
+    </div>
+    <form method="post" class="stack">
+      <label>Email
+        <input type="email" name="email" required autocomplete="username" value="manager@datravia.local">
+      </label>
+      <label>Password
+        <input type="password" name="password" required autocomplete="current-password">
+      </label>
+      <button class="btn btn-primary" type="submit">Sign in</button>
+    </form>
+    <p class="hint">Pilot users: manager@datravia.local / Manager123! · operator@datravia.local / Operator123!</p>
+  </div>
+</section>
+{% endblock %}
