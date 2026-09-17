@@ -155,7 +155,7 @@
 {% block extra_scripts %}
   {{ super() }}
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-          integrity="sha256-DvN1M36zrHfX5Yucs5cjoxOYD65Zj50sC1LFp6Z3A6A=" crossorigin=""></script>
+          integrity="sha256-o9N1j7t78HgsIBofzmiEJeZ3PcTJS3BM4tiTqcH1BNA=" crossorigin=""></script>
   <script>
     (function() {
       const categoriesData = {{ categories_json | tojson }};
@@ -576,20 +576,44 @@
         setMarker(event.latlng.lat, event.latlng.lng);
       });
 
-      document.getElementById('use-my-location').addEventListener('click', function() {
-        if (!navigator.geolocation) {
-          alert('Geolocation is not supported by your browser.');
-          return;
-        }
+      const useLocationButton = document.getElementById('use-my-location');
 
-        navigator.geolocation.getCurrentPosition(function(position) {
-          const { latitude, longitude } = position.coords;
-          map.setView([latitude, longitude], 15);
-          setMarker(latitude, longitude);
-        }, function() {
-          alert('Unable to retrieve your location. Please allow location access or select on the map.');
+      if (useLocationButton) {
+        const originalLocationText = useLocationButton.innerHTML;
+        useLocationButton.addEventListener('click', () => {
+          if (!navigator.geolocation) {
+            alert('Geolocation is not supported by your browser.');
+            return;
+          }
+
+          useLocationButton.disabled = true;
+          useLocationButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Locating…';
+
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const { latitude, longitude } = position.coords;
+              map.setView([latitude, longitude], 15);
+              setMarker(latitude, longitude);
+              useLocationButton.disabled = false;
+              useLocationButton.innerHTML = originalLocationText;
+            },
+            (error) => {
+              let message = 'Unable to retrieve your location. Please allow location access or select on the map.';
+              if (error && error.code === error.PERMISSION_DENIED) {
+                message = 'Location access was denied. Please enable it in your browser settings or select a point on the map.';
+              }
+              alert(message);
+              useLocationButton.disabled = false;
+              useLocationButton.innerHTML = originalLocationText;
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0
+            }
+          );
         });
-      });
+      }
     })();
   </script>
 {% endblock %}

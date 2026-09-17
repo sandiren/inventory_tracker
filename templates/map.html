@@ -3,7 +3,12 @@
 {% block title %}Map View - Inventory Tracker{% endblock %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-sA+vx6kGPR/HIcPp3dGVi8nrpGL2N1Yw9A4JHFKZ3h0=" crossorigin=""/>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-sA+vx6kGPR/HIcPp3dGVi8nrpGL21Yw9A4JHFKZ3h0="
+    crossorigin=""
+  />
   <style>
     #inventory-map { height: 70vh; }
   </style>
@@ -18,7 +23,11 @@
 {% endblock %}
 
 {% block extra_scripts %}
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-DvN1M36zrHfX5Yucs5cjoxOYD65Zj50sC1LFp6Z3A6A=" crossorigin=""></script>
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-o9N1j7t78HgsIBofzmiEJeZ3PcTJS3BM4tiTqcH1BNA="
+    crossorigin=""
+  ></script>
   <script>
     const map = L.map('inventory-map').setView([0, 0], 2);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
